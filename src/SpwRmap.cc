@@ -36,6 +36,11 @@ private:
    */
   std::map<uint8_t, std::unique_ptr<RMAPTargetNode>> target_nodes;
 
+  void start_() {
+    rmap_engine->start();
+    rmap_initiator = std::make_unique<RMAPInitiator>(rmap_engine.get());
+  };
+
 public:
   SpwPImpl(std::string_view ip_address, uint32_t port) {
     spwif = std::make_unique<SpaceWireIFOverTCP>(std::string(ip_address), port);
@@ -46,11 +51,6 @@ public:
     if (rmap_engine->isStarted()) {
       rmap_engine->stop();
     }
-  };
-
-  void start() {
-    rmap_engine->start();
-    rmap_initiator = std::make_unique<RMAPInitiator>(rmap_engine.get());
   };
 
   void addTargetNode(const TargetNode &target_node) {
@@ -79,9 +79,7 @@ public:
                     join_span(target_node.target_spacewire_address),
                     join_span(target_node.reply_address), 0);
 
-    std::println("{}", xml_string);
     loader.loadFromString(&topnode, xml_string);
-    std::println("{}", (void *)topnode);
     auto rmap_target_node = RMAPTargetNode::constructFromXMLNode(topnode);
     target_nodes[target_node.logical_address] =
         std::unique_ptr<RMAPTargetNode>(rmap_target_node);
@@ -89,6 +87,9 @@ public:
 
   void write(uint8_t logical_address, uint32_t memory_address,
              const std::span<uint8_t> data) {
+    if (rmap_engine->isStarted() == false) {
+      start_();
+    }
     if (target_nodes.find(logical_address) == target_nodes.end()) {
       throw std::invalid_argument("Target node not found.");
     }
@@ -99,6 +100,9 @@ public:
 
   auto read(uint8_t logical_address, uint32_t memory_address, uint32_t length)
       -> std::vector<uint8_t> {
+    if (rmap_engine->isStarted() == false) {
+      start_();
+    }
     if (target_nodes.find(logical_address) == target_nodes.end()) {
       throw std::invalid_argument("Target node not found.");
     }
