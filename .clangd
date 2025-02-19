@@ -1,0 +1,12 @@
+CompileFlags:
+  Add: 
+    - -Wall
+    - -xc++
+
+CompileCommands:
+  Path: ./build
+
+File:
+  Extensions:
+    - extension: hh
+      language: c++
