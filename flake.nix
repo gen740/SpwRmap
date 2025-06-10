@@ -19,12 +19,61 @@
         { pkgs, ... }:
         let
           clangTools = pkgs.llvmPackages.clang-tools.override { enableLibcxx = true; };
+          legacy_spw_rmap = (
+            pkgs.stdenv.mkDerivation {
+              pname = "space_wire_rmap_library";
+              version = "1.0.0";
+
+              src = pkgs.fetchFromGitHub {
+                owner = "yuasatakayuki";
+                repo = "SpaceWireRMAPLibrary";
+                rev = "master";
+                sha256 = "sha256-h0fw1qL/E+7VgoYSWlfS0sFwA1n+ZDZzYSStMwg8tAY=";
+              };
+
+              propagatedBuildInputs = [
+                pkgs.xercesc
+                (pkgs.stdenv.mkDerivation {
+                  pname = "cxx_utilities";
+                  version = "1.0.0";
+                  src = pkgs.fetchFromGitHub {
+                    owner = "yuasatakayuki";
+                    repo = "CxxUtilities";
+                    rev = "master";
+                    sha256 = "sha256-C5pQJtpkHYTDxzpaZAFcDqozjBL1+i9Opx5vRp/l6uc=";
+                  };
+                  installPhase = ''
+                    mkdir -p $out/include
+                    cp -r includes/* $out/include/
+                  '';
+                })
+                (pkgs.stdenv.mkDerivation {
+                  pname = "xml_utilities";
+                  version = "1.0.0";
+                  src = pkgs.fetchFromGitHub {
+                    owner = "sakuraisoki";
+                    repo = "XMLUtilities";
+                    rev = "master";
+                    sha256 = "sha256-7Bd65SWcH35hiZmC2XGNM/ytfttrbY7mWoFKRDgg/Lw=";
+                  };
+                  installPhase = ''
+                    mkdir -p $out/include
+                    cp -r include/* $out/include/
+                  '';
+                })
+              ];
+              installPhase = ''
+                mkdir -p $out/include
+                cp -r includes/* $out/include/
+              '';
+
+            }
+          );
         in
-        rec {
+        {
           devShells.default = pkgs.mkShellNoCC {
             packages = [
-              packages.SpaceWireRMAPLibrary
-
+              legacy_spw_rmap
               pkgs.cmake
               pkgs.cmake-format
               pkgs.cmake-language-server
@@ -40,68 +89,9 @@
             '';
           };
 
-          packages = rec {
-
-            CxxUtilities = pkgs.stdenv.mkDerivation {
-              pname = "cxx_utilities";
-              version = "1.0.0"; # Replace with the appropriate version if needed.
-
-              src = pkgs.fetchFromGitHub {
-                owner = "yuasatakayuki";
-                repo = "CxxUtilities";
-                rev = "master"; # Use a specific commit or branch if necessary.
-                sha256 = "sha256-C5pQJtpkHYTDxzpaZAFcDqozjBL1+i9Opx5vRp/l6uc="; # Replace with the actual hash.
-              };
-
-              installPhase = ''
-                mkdir -p $out/include
-                cp -r includes/* $out/include/
-              '';
-            };
-
-            XMLUtilities = pkgs.stdenv.mkDerivation {
-              pname = "XMLUtilities";
-              version = "1.0.0";
-
-              src = pkgs.fetchFromGitHub {
-                owner = "sakuraisoki";
-                repo = "XMLUtilities";
-                rev = "master";
-                sha256 = "sha256-7Bd65SWcH35hiZmC2XGNM/ytfttrbY7mWoFKRDgg/Lw="; # Replace with the actual hash.
-              };
-
-              installPhase = ''
-                mkdir -p $out/include
-                cp -r include/* $out/include/
-              '';
-            };
-
-            SpaceWireRMAPLibrary = pkgs.stdenv.mkDerivation {
-              pname = "SpaceWireRMAPLibrary";
-              version = "1.0.0";
-
-              src = pkgs.fetchFromGitHub {
-                owner = "yuasatakayuki";
-                repo = "SpaceWireRMAPLibrary";
-                rev = "master";
-                sha256 = "sha256-h0fw1qL/E+7VgoYSWlfS0sFwA1n+ZDZzYSStMwg8tAY=";
-              };
-
-              propagatedBuildInputs = [
-                pkgs.xercesc
-                CxxUtilities
-                XMLUtilities
-              ];
-
-              installPhase = ''
-                mkdir -p $out/include
-                cp -r includes/* $out/include/
-              '';
-
-            };
-
-            SpwRmap = pkgs.llvmPackages.libcxxStdenv.mkDerivation {
-              pname = "spw-rmap";
+          packages = {
+            spw_rmap = pkgs.llvmPackages.libcxxStdenv.mkDerivation {
+              pname = "spw_rmap";
               version = "1.0.0";
               src = ./.;
 
@@ -113,7 +103,7 @@
               ];
 
               buildInputs = [
-                SpaceWireRMAPLibrary
+                legacy_spw_rmap
               ];
               configureFlags = [
                 "-DSPWRMAP_BUILD_EXAMPLES=ON"
