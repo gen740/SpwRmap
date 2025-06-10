@@ -1,27 +1,36 @@
-#include "SpwRmap.hh"
+/**
+ * @file LegacySpwRmap.cc
+ * @brief Legacy SpaceWire RMAP library implementation.
+ * @date 2025-03-01
+ * @author gen740
+ */
+#include "SpwRmap/LegacySpwRmap.hh"
+
 #include <RMAP.hh>
 #include <SpaceWireIFOverTCP.hh>
-
 #include <XMLUtilities/XMLLoader.hpp>
 #include <XMLUtilities/XMLNode.hpp>
+#include <chrono>
+#include <memory>
 #include <span>
+#include <thread>
 
 namespace SpwRmap {
 
-std::string join_span(const std::span<const uint8_t> numbers) {
+auto join_span(const std::span<const uint8_t> numbers) -> std::string {
   std::ostringstream oss;
-  if (!numbers.empty()) {
-    oss << static_cast<int>(numbers[0]); // 最初の要素
-    for (size_t i = 1; i < numbers.size(); ++i) {
-      oss << " " << static_cast<int>(numbers[i]); // 空白区切りで追加
-    }
+  if (numbers.empty()) {
+    return "";
+  }
+  oss << static_cast<int>(numbers[0]);
+  for (size_t i = 1; i < numbers.size(); ++i) {
+    oss << " " << static_cast<int>(numbers[i]);
   }
   return oss.str();
 }
 
-class SpwRmap::SpwPImpl {
-
-private:
+class LegacySpwRmap::SpwPImpl {
+ private:
   std::unique_ptr<SpaceWireIFOverTCP> spwif = nullptr;
   std::unique_ptr<RMAPEngine> rmap_engine = nullptr;
   std::unique_ptr<RMAPInitiator> rmap_initiator = nullptr;
@@ -34,16 +43,19 @@ private:
    * Logical address is a 8-bit integer larger than 32.
    * The valid logical address range is 32 to 255.
    */
-  std::map<uint8_t, std::unique_ptr<RMAPTargetNode>> target_nodes;
+  std::map<uint8_t, RMAPTargetNode *> target_nodes;
 
   void start_() {
     rmap_engine->start();
     rmap_initiator = std::make_unique<RMAPInitiator>(rmap_engine.get());
+    rmap_initiator->setInitiatorLogicalAddress(0xFE);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
   };
 
-public:
-  SpwPImpl(std::string_view ip_address, uint32_t port) {
+ public:
+  explicit SpwPImpl(std::string_view ip_address, uint32_t port) {
     spwif = std::make_unique<SpaceWireIFOverTCP>(std::string(ip_address), port);
+    spwif->open();
     rmap_engine = std::make_unique<RMAPEngine>(spwif.get());
   };
 
@@ -53,6 +65,14 @@ public:
     }
   };
 
+  /**
+   * @brief Adds a target node to the list.
+   *
+   * The SpaceWireRMAPLibrary's target node has to be initialized uisng XMLNode.
+   * This function wraps the initialization process.
+   *
+   * @param target_node The target node to add.
+   */
   void addTargetNode(const TargetNode &target_node) {
     if (target_node.logical_address < 32) [[unlikely]] {
       throw std::invalid_argument("Logical address must be larger than 32.");
@@ -77,12 +97,12 @@ public:
       </RMAPTargetNode>)",
                     target_node.logical_address,
                     join_span(target_node.target_spacewire_address),
-                    join_span(target_node.reply_address), 0);
+                    join_span(target_node.reply_address), 2);
 
     loader.loadFromString(&topnode, xml_string);
     auto rmap_target_node = RMAPTargetNode::constructFromXMLNode(topnode);
-    target_nodes[target_node.logical_address] =
-        std::unique_ptr<RMAPTargetNode>(rmap_target_node);
+    target_nodes.insert(
+        std::make_pair(target_node.logical_address, rmap_target_node));
   }
 
   void write(uint8_t logical_address, uint32_t memory_address,
@@ -93,7 +113,7 @@ public:
     if (target_nodes.find(logical_address) == target_nodes.end()) {
       throw std::invalid_argument("Target node not found.");
     }
-    RMAPTargetNode *target_node = target_nodes[logical_address].get();
+    RMAPTargetNode *target_node = target_nodes[logical_address];
     rmap_initiator->write(target_node, memory_address, data.data(),
                           data.size());
   }
@@ -106,28 +126,34 @@ public:
     if (target_nodes.find(logical_address) == target_nodes.end()) {
       throw std::invalid_argument("Target node not found.");
     }
-    RMAPTargetNode *target_node = target_nodes[logical_address].get();
+    auto target_node_ptr = target_nodes.at(logical_address);
     std::vector<uint8_t> buffer(length);
-    rmap_initiator->read(target_node, memory_address, length, buffer.data());
+    rmap_initiator->read(target_node_ptr, memory_address, length,
+                         buffer.data());
     return buffer;
   }
+
+  auto emitTimeCode(uint8_t timecode) -> void { spwif->emitTimecode(timecode); }
 };
 
-SpwRmap::SpwRmap(std::string_view ip_address, uint32_t port)
-    : pImpl(std::make_shared<SpwPImpl>(ip_address, port)) {}
+LegacySpwRmap::LegacySpwRmap(std::string_view ip_address, uint32_t port)
+    : impl_(new SpwPImpl(ip_address, port)) {}
+LegacySpwRmap::~LegacySpwRmap() = default;
 
-void SpwRmap::addTargetNode(const TargetNode &target_node) {
-  pImpl->addTargetNode(target_node);
+void LegacySpwRmap::addTargetNode(const TargetNode &target_node) {
+  impl_->addTargetNode(target_node);
+}
+void LegacySpwRmap::write(uint8_t logical_address, uint32_t memory_address,
+                          const std::span<uint8_t> data) {
+  impl_->write(logical_address, memory_address, data);
 }
 
-void SpwRmap::write(uint8_t logical_address, uint32_t memory_address,
-                    const std::span<uint8_t> data) {
-  pImpl->write(logical_address, memory_address, data);
+auto LegacySpwRmap::read(uint8_t logical_address, uint32_t memory_address,
+                         uint32_t length) -> std::vector<uint8_t> {
+  return impl_->read(logical_address, memory_address, length);
+}
+auto LegacySpwRmap::emitTimeCode(uint8_t timecode) -> void {
+  impl_->emitTimeCode(timecode);
 }
 
-auto SpwRmap::read(uint8_t logical_address, uint32_t memory_address,
-                   uint32_t length) -> std::vector<uint8_t> {
-  return pImpl->read(logical_address, memory_address, length);
-}
-
-}; // namespace SpwRmap
+};  // namespace SpwRmap
