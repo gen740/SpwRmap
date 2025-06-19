@@ -11,7 +11,6 @@
 
 #include <memory>
 #include <span>
-#include <vector>
 
 #include "SpwRmap/SpwRmapBase.hh"
 #include "SpwRmap/TargetNode.hh"
@@ -23,11 +22,11 @@ class LegacySpwRmap final : public SpwRmapBase {
   explicit LegacySpwRmap(std::string_view ip_address, uint32_t port);
   ~LegacySpwRmap() override;
 
-  auto addTargetNode(const TargetNode &target_node) -> void final;
-  auto write(uint8_t logical_address, uint32_t memory_address,
-             const std::span<uint8_t> data) -> void final;
-  [[nodiscard]] auto read(uint8_t logical_address, uint32_t memory_address,
-                          uint32_t length) -> std::vector<uint8_t> final;
+  auto addTargetNode(const TargetNode& target_node) -> void final;
+  auto write(uint8_t logical_address, uint32_t memory_address, const std::span<uint8_t> data)
+      -> void final;
+  auto read(uint8_t logical_address, uint32_t memory_address, std::span<uint8_t>&& data)
+      -> void final;
   auto emitTimeCode(uint8_t timecode) -> void final;
 
  private:

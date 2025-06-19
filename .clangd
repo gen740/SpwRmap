@@ -1,12 +1,17 @@
 CompileFlags:
   Add: 
     - -Wall
-    - -xc++
+    - -Werror
+    - -Wextra
+    - -Wpedantic
 
-CompileCommands:
-  Path: ./build
+  CompilationDatabase: ./build
 
-File:
-  Extensions:
-    - extension: hh
-      language: c++
+Diagnostics:
+  ClangTidy:
+    Add:
+      - modernize*
+      - bugprone*
+
+    Remove:
+      - bugprone-easily-swappable-parameters

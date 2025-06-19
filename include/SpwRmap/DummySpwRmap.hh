@@ -8,7 +8,6 @@
 
 #include <span>
 #include <string_view>
-#include <vector>
 
 #include "SpwRmap/SpwRmapBase.hh"
 
@@ -20,23 +19,18 @@ class DummySpwRmap final : public SpwRmapBase {
       : ip_address(ip_address), port(port) {}
   ~DummySpwRmap() override = default;
 
-  auto addTargetNode([[maybe_unused]] const TargetNode &target_node)
-      -> void final {
+  auto addTargetNode([[maybe_unused]] const TargetNode &target_node) -> void final {
     // Do nothing
   }
 
-  auto write([[maybe_unused]] uint8_t logical_address,
-             [[maybe_unused]] uint32_t memory_address,
+  auto write([[maybe_unused]] uint8_t logical_address, [[maybe_unused]] uint32_t memory_address,
              [[maybe_unused]] const std::span<uint8_t> data) -> void final {
     // Do nothing
   }
 
-  [[nodiscard]] auto read([[maybe_unused]] uint8_t logical_address,
-                          [[maybe_unused]] uint32_t memory_address,
-                          [[maybe_unused]] uint32_t length)
-      -> std::vector<uint8_t> final {
-    auto ret = std::vector<uint8_t>(length, 0);
-    return ret;
+  auto read([[maybe_unused]] uint8_t logical_address, [[maybe_unused]] uint32_t memory_address,
+            [[maybe_unused]] std::span<uint8_t> &&data) -> void final {
+    // Do nothing
   }
 
   auto emitTimeCode([[maybe_unused]] uint8_t timecode) -> void final {

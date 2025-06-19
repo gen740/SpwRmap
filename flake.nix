@@ -83,30 +83,19 @@
               pkgs.llvmPackages.lldb
               pkgs.llvmPackages.libcxxClang
             ];
-            shellHook = ''
-              export LLDB_DEBUGSERVER_PATH=/Library/Developer/CommandLineTools/Library/PrivateFrameworks/LLDB.framework/Versions/Current/Resources/debugserver
-              export NIX_CFLAGS_COMPILE="$NIX_CFLAGS_COMPILE -B${pkgs.llvmPackages_19.libcxxClang.libcxx}/lib"
-            '';
           };
 
           packages = {
-            spw_rmap = pkgs.llvmPackages.libcxxStdenv.mkDerivation {
+            spw_rmap = pkgs.stdenv.mkDerivation {
               pname = "spw_rmap";
               version = "1.0.0";
               src = ./.;
-
               nativeBuildInputs = [
                 pkgs.cmake
                 pkgs.ninja
-                clangTools
-                pkgs.llvmPackages.libcxxClang
               ];
-
               buildInputs = [
                 legacy_spw_rmap
-              ];
-              configureFlags = [
-                "-DSPWRMAP_BUILD_EXAMPLES=ON"
               ];
             };
           };
@@ -123,6 +112,19 @@
                       -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
                   fi
                   nix develop --command cmake --build build
+                '').outPath;
+            };
+            check = {
+              type = "app";
+              program =
+                (pkgs.writeShellScript "build-spw-rmap" ''
+                  echo "Running clang-tidy ..."
+                  ${pkgs.ripgrep}/bin/rg -0 -tcpp -l . | \
+                    xargs -0 -n 1 clang-tidy -p ./build
+                  echo "Running clang-format ..."
+                  ${pkgs.ripgrep}/bin/rg -0 -tcpp -l . | \
+                    xargs -0 -n 1 -P 8 clang-format -i
+                  echo "OK"
                 '').outPath;
             };
 

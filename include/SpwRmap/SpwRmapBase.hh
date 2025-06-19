@@ -8,7 +8,6 @@
 #pragma once
 
 #include <span>
-#include <vector>
 
 #include "SpwRmap/TargetNode.hh"
 
@@ -54,12 +53,10 @@ class SpwRmapBase {
    *
    * @param logical_address Logical address of the target node.
    * @param memory_address Target memory address.
-   * @param length Number of bytes to read.
-   * @return std::vector<uint8_t> Retrieved data.
+   * @param data Reference to a span where the read data will be stored.
    */
-  [[nodiscard]] virtual auto read(uint8_t logical_address,
-                                  uint32_t memory_address, uint32_t length)
-      -> std::vector<uint8_t> = 0;
+  virtual auto read(uint8_t logical_address, uint32_t memory_address, std::span<uint8_t> &&data)
+      -> void = 0;
 
   /**
    * @brief Emits a time code.
