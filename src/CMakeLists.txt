@@ -8,7 +8,7 @@ target_include_directories(
 
 target_link_libraries(${PROJECT_NAME} PRIVATE XercesC::XercesC)
 
-file(GLOB_RECURSE SOURCES ${CMAKE_SOURCE_DIR}/src/*.cc)
+file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_LIST_DIR}/*.cc)
 
 target_sources(${PROJECT_NAME} PRIVATE ${SOURCES})
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_23)

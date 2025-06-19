@@ -1,4 +1,4 @@
-#include <SpwRmap/SpwRmap.hh>
+#include <SpwRmap/LegacySpwRmap.hh>
 #include <chrono>
 #include <print>
 #include <thread>
