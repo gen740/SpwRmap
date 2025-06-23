@@ -43,7 +43,7 @@ class SpwRmapBase {
    * @param data Data to write.
    */
   virtual auto write(uint8_t logical_address, uint32_t memory_address,
-                     const std::span<uint8_t> data) -> void = 0;
+                     const std::span<const uint8_t> data) -> void = 0;
 
   /**
    * @brief Reads data from a target node.
@@ -55,7 +55,7 @@ class SpwRmapBase {
    * @param memory_address Target memory address.
    * @param data Reference to a span where the read data will be stored.
    */
-  virtual auto read(uint8_t logical_address, uint32_t memory_address, std::span<uint8_t> &&data)
+  virtual auto read(uint8_t logical_address, uint32_t memory_address, const std::span<uint8_t> data)
       -> void = 0;
 
   /**

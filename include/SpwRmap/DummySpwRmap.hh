@@ -24,12 +24,12 @@ class DummySpwRmap final : public SpwRmapBase {
   }
 
   auto write([[maybe_unused]] uint8_t logical_address, [[maybe_unused]] uint32_t memory_address,
-             [[maybe_unused]] const std::span<uint8_t> data) -> void final {
+             [[maybe_unused]] const std::span<const uint8_t> data) -> void final {
     // Do nothing
   }
 
   auto read([[maybe_unused]] uint8_t logical_address, [[maybe_unused]] uint32_t memory_address,
-            [[maybe_unused]] std::span<uint8_t> &&data) -> void final {
+            [[maybe_unused]] const std::span<uint8_t> data) -> void final {
     // Do nothing
   }
 

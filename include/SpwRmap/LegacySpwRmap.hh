@@ -23,9 +23,9 @@ class LegacySpwRmap final : public SpwRmapBase {
   ~LegacySpwRmap() override;
 
   auto addTargetNode(const TargetNode& target_node) -> void final;
-  auto write(uint8_t logical_address, uint32_t memory_address, const std::span<uint8_t> data)
+  auto write(uint8_t logical_address, uint32_t memory_address, const std::span<const uint8_t> data)
       -> void final;
-  auto read(uint8_t logical_address, uint32_t memory_address, std::span<uint8_t>&& data)
+  auto read(uint8_t logical_address, uint32_t memory_address, const std::span<uint8_t> data)
       -> void final;
   auto emitTimeCode(uint8_t timecode) -> void final;
 

@@ -103,7 +103,7 @@ class LegacySpwRmap::SpwPImpl {
     target_nodes.insert(std::make_pair(target_node.logical_address, rmap_target_node));
   }
 
-  auto write(uint8_t logical_address, uint32_t memory_address, const std::span<uint8_t> data)
+  auto write(uint8_t logical_address, uint32_t memory_address, const std::span<const uint8_t> data)
       -> void {
     if (rmap_engine->isStarted() == false) {
       start_();
@@ -112,10 +112,11 @@ class LegacySpwRmap::SpwPImpl {
       throw std::invalid_argument("Target node not found.");
     }
     RMAPTargetNode *target_node = target_nodes[logical_address];
-    rmap_initiator->write(target_node, memory_address, data.data(), data.size());
+    rmap_initiator->write(target_node, memory_address, (uint8_t *)(data.data()), data.size());
   }
 
-  auto read(uint8_t logical_address, uint32_t memory_address, std::span<uint8_t> &&buffer) -> void {
+  auto read(uint8_t logical_address, uint32_t memory_address, const std::span<uint8_t> buffer)
+      -> void {
     if (rmap_engine->isStarted() == false) {
       start_();
     }
@@ -137,13 +138,13 @@ auto LegacySpwRmap::addTargetNode(const TargetNode &target_node) -> void {
   impl_->addTargetNode(target_node);
 }
 auto LegacySpwRmap::write(uint8_t logical_address, uint32_t memory_address,
-                          const std::span<uint8_t> data) -> void {
+                          const std::span<const uint8_t> data) -> void {
   impl_->write(logical_address, memory_address, data);
 }
 
 auto LegacySpwRmap::read(uint8_t logical_address, uint32_t memory_address,
-                         std::span<uint8_t> &&data) -> void {
-  impl_->read(logical_address, memory_address, std::move(data));
+                         const std::span<uint8_t> data) -> void {
+  impl_->read(logical_address, memory_address, data);
 }
 auto LegacySpwRmap::emitTimeCode(uint8_t timecode) -> void { impl_->emitTimeCode(timecode); }
 
