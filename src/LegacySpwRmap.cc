@@ -76,8 +76,6 @@ class LegacySpwRmap::SpwPImpl {
   auto addTargetNode(const TargetNode &target_node) -> void {
     if (target_node.logical_address < 32) [[unlikely]] {
       throw std::invalid_argument("Logical address must be larger than 32.");
-    } else if (target_node.logical_address > 255) [[unlikely]] {
-      throw std::invalid_argument("Logical address must be less than 255.");
     }
 
     std::unique_ptr<XMLNode> node;

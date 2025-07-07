@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <span>
 
 #include "SpwRmap/TargetNode.hh"

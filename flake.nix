@@ -42,10 +42,35 @@
                     rev = "master";
                     sha256 = "sha256-C5pQJtpkHYTDxzpaZAFcDqozjBL1+i9Opx5vRp/l6uc=";
                   };
+
+                  nativeBuildInputs = [ pkgs.perl ];
+
+                  postPatch = ''
+                    find . -name '*.hh' -print0 | while IFS= read -r -d "" file; do
+                      echo "Processing $file"
+                      perl -0777 -i -pe '
+                        s{
+                          \bthrow
+                          \s*                     # optional whitespace
+                          \(
+                          (                      # capture group for inner content
+                            (?:
+                              [^()]*             # non-parens
+                              (?:\([^()]*\)[^()]*)* # handle nested parens (1 level)
+                            )
+                          )
+                          \)
+                          (?!\s*;)               # negative lookahead: do not match if followed by ;
+                        }{}gsx
+                      ' "$file"
+                    done
+                  '';
+
                   installPhase = ''
                     mkdir -p $out/include
                     cp -r includes/* $out/include/
                   '';
+
                 })
                 (pkgs.stdenv.mkDerivation {
                   pname = "xml_utilities";
@@ -62,6 +87,32 @@
                   '';
                 })
               ];
+
+              nativeBuildInputs = [
+                pkgs.perl
+              ];
+
+              postPatch = ''
+                find . -name '*.hh' -print0 | while IFS= read -r -d "" file; do
+                  echo "Processing $file"
+                  perl -0777 -i -pe '
+                    s{
+                      \bthrow
+                      \s*                     # optional whitespace
+                      \(
+                      (                      # capture group for inner content
+                        (?:
+                          [^()]*             # non-parens
+                          (?:\([^()]*\)[^()]*)* # handle nested parens (1 level)
+                        )
+                      )
+                      \)
+                      (?!\s*;)               # negative lookahead: do not match if followed by ;
+                    }{}gsx
+                  ' "$file"
+                done
+              '';
+
               installPhase = ''
                 mkdir -p $out/include
                 cp -r includes/* $out/include/
