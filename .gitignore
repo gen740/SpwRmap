@@ -3,4 +3,5 @@
 .direnv
 .cache
 
-build
+build/
+result
