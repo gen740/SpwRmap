@@ -129,6 +129,7 @@
               pkgs.cmake-format
               pkgs.cmake-language-server
               pkgs.ninja
+              pkgs.gtest
 
               clangTools
               pkgs.llvmPackages.lldb
@@ -147,6 +148,7 @@
               ];
               buildInputs = [
                 legacy_spw_rmap
+                pkgs.gtest
               ];
             };
           };

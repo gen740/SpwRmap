@@ -2,10 +2,16 @@ cmake_minimum_required(VERSION 3.27)
 project(SpwRmap LANGUAGES CXX)
 
 option(SPWRMAP_BUILD_EXAMPLES "Build examples" OFF)
+option(SPWRMAP_BUILD_TESTS "Build tests" OFF)
 add_subdirectory(src)
 
 if(SPWRMAP_BUILD_EXAMPLES)
   add_subdirectory(examples)
+endif()
+
+if(SPWRMAP_BUILD_TESTS)
+  enable_testing()
+  add_subdirectory(tests)
 endif()
 
 include(CMakePackageConfigHelpers)

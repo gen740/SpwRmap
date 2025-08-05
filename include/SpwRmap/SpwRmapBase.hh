@@ -15,11 +15,10 @@
 namespace SpwRmap {
 
 class SpwRmapBase {
- protected:
+ public:
   SpwRmapBase() = default;
   virtual ~SpwRmapBase() = default;
 
- public:
   SpwRmapBase(const SpwRmapBase &) = delete;
   auto operator=(const SpwRmapBase &) -> SpwRmapBase & = delete;
 
