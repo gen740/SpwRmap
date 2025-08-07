@@ -110,7 +110,13 @@ class LegacySpwRmap::SpwPImpl {
       throw std::invalid_argument("Target node not found.");
     }
     RMAPTargetNode *target_node = target_nodes[logical_address];
-    rmap_initiator->write(target_node, memory_address, (uint8_t *)(data.data()), data.size());
+    try {
+      rmap_initiator->write(target_node, memory_address, (uint8_t *)(data.data()), data.size());
+    } catch (RMAPInitiatorException &e) {
+      throw std::runtime_error(std::format("RMAPInitiatorException: {}", e.toString()));
+    } catch (RMAPReplyException &e) {
+      throw std::runtime_error(std::format("RMAPReplyException: {}", e.toString()));
+    }
   }
 
   auto read(uint8_t logical_address, uint32_t memory_address, const std::span<uint8_t> buffer)
@@ -122,7 +128,13 @@ class LegacySpwRmap::SpwPImpl {
       throw std::invalid_argument("Target node not found.");
     }
     auto target_node_ptr = target_nodes.at(logical_address);
-    rmap_initiator->read(target_node_ptr, memory_address, buffer.size(), buffer.data());
+    try {
+      rmap_initiator->read(target_node_ptr, memory_address, buffer.size(), buffer.data());
+    } catch (RMAPInitiatorException &e) {
+      throw std::runtime_error(std::format("RMAPInitiatorException: {}", e.toString()));
+    } catch (RMAPReplyException &e) {
+      throw std::runtime_error(std::format("RMAPReplyException: {}", e.toString()));
+    }
   }
 
   auto emitTimeCode(uint8_t timecode) -> void { spwif->emitTimecode(timecode); }
