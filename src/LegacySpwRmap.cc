@@ -46,17 +46,26 @@ class LegacySpwRmap::SpwPImpl {
   std::map<uint8_t, RMAPTargetNode *> target_nodes;
 
   void start_() {
-    rmap_engine->start();
-    rmap_initiator = std::make_unique<RMAPInitiator>(rmap_engine.get());
-    rmap_initiator->setInitiatorLogicalAddress(0xFE);
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    try {
+      rmap_engine->start();
+      rmap_initiator = std::make_unique<RMAPInitiator>(rmap_engine.get());
+      rmap_initiator->setInitiatorLogicalAddress(0xFE);
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    } catch (CxxUtilities::Exception &e) {
+      throw std::runtime_error(std::format("Failed to start RMAP engine: {}", e.toString()));
+    }
   };
 
  public:
   explicit SpwPImpl(std::string_view ip_address, uint32_t port) {
-    spwif = std::make_unique<SpaceWireIFOverTCP>(std::string(ip_address), port);
-    spwif->open();
-    rmap_engine = std::make_unique<RMAPEngine>(spwif.get());
+    try {
+      spwif = std::make_unique<SpaceWireIFOverTCP>(std::string(ip_address), port);
+      spwif->open();
+      rmap_engine = std::make_unique<RMAPEngine>(spwif.get());
+    } catch (CxxUtilities::Exception &e) {
+      throw std::runtime_error(
+          std::format("Failed to initialize SpaceWire interface: {}", e.toString()));
+    }
   };
 
   ~SpwPImpl() {
