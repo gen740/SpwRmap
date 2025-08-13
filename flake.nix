@@ -161,6 +161,7 @@
                   if [ ! -d build ]; then
                     nix develop --command cmake -S . -B build -G Ninja \
                       -DCMAKE_BUILD_TYPE=Debug \
+                      -DSPWRMAP_BUILD_TESTS=ON \
                       -DSPWRMAP_BUILD_EXAMPLES=ON \
                       -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
                   fi
