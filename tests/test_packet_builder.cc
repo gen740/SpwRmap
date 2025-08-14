@@ -221,8 +221,9 @@ TEST(PacketBuilder, ReadPacketBuilder) {
     auto status = parser.parse(packet_array);
     ASSERT_EQ(status, SpwRmap::PacketParser::StatusCode::Success);
 
-    ASSERT_EQ(parser.getPacket().targetSpaceWireAddress, targetSpaceWireAddress);
-    ASSERT_EQ(parser.getPacket().replyAddress, replyAddress);
+    ASSERT_TRUE(
+        std::ranges::equal(parser.getPacket().targetSpaceWireAddress, targetSpaceWireAddress));
+    ASSERT_TRUE(std::ranges::equal(parser.getPacket().replyAddress, replyAddress));
     ASSERT_EQ(parser.getPacket().targetLogicalAddress, config.targetLogicalAddress);
     ASSERT_EQ(parser.getPacket().initiatorLogicalAddress, config.initiatorLogicalAddress);
     ASSERT_EQ(parser.getPacket().transactionID, config.transactionID);
@@ -281,14 +282,15 @@ TEST(PacketBuilder, WritePacketBuilder) {
     auto status = parser.parse(packet_array);
     ASSERT_EQ(status, SpwRmap::PacketParser::StatusCode::Success);
 
-    ASSERT_EQ(parser.getPacket().targetSpaceWireAddress, targetSpaceWireAddress);
-    ASSERT_EQ(parser.getPacket().replyAddress, replyAddress);
+    ASSERT_TRUE(
+        std::ranges::equal(parser.getPacket().targetSpaceWireAddress, targetSpaceWireAddress));
+    ASSERT_TRUE(std::ranges::equal(parser.getPacket().replyAddress, replyAddress));
     ASSERT_EQ(parser.getPacket().targetLogicalAddress, config.targetLogicalAddress);
     ASSERT_EQ(parser.getPacket().initiatorLogicalAddress, config.initiatorLogicalAddress);
     ASSERT_EQ(parser.getPacket().transactionID, config.transactionID);
     ASSERT_EQ(parser.getPacket().key, config.key);
     ASSERT_EQ(parser.getPacket().extendedAddress, config.extendedAddress);
     ASSERT_EQ(parser.getPacket().address, config.address);
-    ASSERT_EQ(parser.getPacket().data, data);
+    ASSERT_TRUE(std::ranges::equal(parser.getPacket().data, config.data));
   }
 }

@@ -1,17 +1,16 @@
 #include <gtest/gtest.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <sys/socket.h>
 
 #include <SpwRmap/internal/TCPClient.hh>
 #include <SpwRmap/internal/TCPServer.hh>
-#include <array>
 #include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <cstring>
-#include <future>
-#include <optional>
 #include <random>
 #include <span>
-#include <string>
 #include <thread>
 #include <vector>
 
