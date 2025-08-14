@@ -29,17 +29,18 @@ class TCPClient {
 
   ~TCPClient();
 
-  [[nodiscard]] auto connect(std::chrono::microseconds recv_timeout,
-                             std::chrono::microseconds send_timeout,
-                             std::chrono::microseconds connect_timeout) noexcept
+  [[nodiscard]] auto connect(
+      std::chrono::microseconds recv_timeout = 500ms,
+      std::chrono::microseconds send_timeout = 500ms,
+      std::chrono::microseconds connect_timeout = 500ms) noexcept
       -> std::expected<std::monostate, std::error_code>;
 
   auto disconnect() noexcept -> void;
 
   [[nodiscard]] auto reconnect(
-      std::chrono::microseconds recv_timeout,
-      std::chrono::microseconds send_timeout,
-      std::chrono::microseconds connect_timeout) noexcept
+      std::chrono::microseconds recv_timeout = 500ms,
+      std::chrono::microseconds send_timeout = 500ms,
+      std::chrono::microseconds connect_timeout = 500ms) noexcept
       -> std::expected<std::monostate, std::error_code>;
 
   [[nodiscard]] auto setRecvTimeout(std::chrono::microseconds timeout) noexcept

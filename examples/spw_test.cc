@@ -9,10 +9,14 @@ uint64_t get_spw_ti(const auto &vec) {
   if (vec.size() != 8) {
     throw std::invalid_argument("Vector size must be 8");
   }
-  return (static_cast<uint64_t>(vec[3])) | (static_cast<uint64_t>(vec[2]) << 8) |
-         (static_cast<uint64_t>(vec[1]) << 16) | (static_cast<uint64_t>(vec[0]) << 24) |
-         (static_cast<uint64_t>(vec[7]) << 32) | (static_cast<uint64_t>(vec[6]) << 40) |
-         (static_cast<uint64_t>(vec[5]) << 48) | (static_cast<uint64_t>(vec[4]) << 56);
+  return (static_cast<uint64_t>(vec[3])) |
+         (static_cast<uint64_t>(vec[2]) << 8) |
+         (static_cast<uint64_t>(vec[1]) << 16) |
+         (static_cast<uint64_t>(vec[0]) << 24) |
+         (static_cast<uint64_t>(vec[7]) << 32) |
+         (static_cast<uint64_t>(vec[6]) << 40) |
+         (static_cast<uint64_t>(vec[5]) << 48) |
+         (static_cast<uint64_t>(vec[4]) << 56);
 }
 
 auto main() -> int {
@@ -21,15 +25,13 @@ auto main() -> int {
   SpwRmap::TargetNode target_node;
   target_node.logical_address = 0xF2;
 
-  std::array<uint8_t, 1> target_spacewire_address = {2};
-  target_node.target_spacewire_address = target_spacewire_address;
-  std::array<uint8_t, 1> reply_address = {3};
-  target_node.reply_address = reply_address;
+  target_node.target_spacewire_address = {2};
+  target_node.reply_address = {3};
 
   spw_rmap.addTargetNode(target_node);
 
-  std::array<uint8_t, 8> buffer;
-  std::array<uint8_t, 4> time_code_buffer;
+  std::array<uint8_t, 8> buffer{};
+  std::array<uint8_t, 4> time_code_buffer{};
   spw_rmap.read(0xF2, 0x44a40000, buffer);
 
   std::print("{}", buffer);

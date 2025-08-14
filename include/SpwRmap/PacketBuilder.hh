@@ -11,30 +11,75 @@ template <class ConfigT>
 class PacketBuilderBase {
  private:
   ConfigT config_{};
-  std::vector<uint8_t> packet_;
+  std::unique_ptr<std::vector<uint8_t>> packet_vec_ = nullptr;
+  std::span<uint8_t> packet_;
+
+  size_t total_size_ = 0;
 
  protected:
-  [[nodiscard]] auto getConfig_() const noexcept -> const ConfigT& { return config_; }
-  [[nodiscard]] auto getMutablePacket_() noexcept -> std::vector<uint8_t>& { return packet_; }
+  [[nodiscard]] auto getConfig_() const noexcept -> const ConfigT& {
+    return config_;
+  }
+
+  [[nodiscard]] auto getPacket_() noexcept -> std::span<uint8_t> {
+    return packet_;
+  }
+
+  auto setPacket_(std::span<uint8_t> buffer) noexcept -> void {
+    packet_ = buffer;
+  }
+
+  [[nodiscard]] auto usingInternalBuffer_() const noexcept -> bool {
+    return packet_vec_ != nullptr;
+  }
+
+  auto resizeInternalBuffer_(size_t size) const noexcept -> void {
+    return packet_vec_->resize(size);
+  }
+
+  auto setTotalSize_(size_t size) noexcept -> void { total_size_ = size; }
+
+  [[nodiscard]] virtual auto calcTotalSize_() const noexcept -> size_t = 0;
 
  public:
+  virtual ~PacketBuilderBase() = default;
   explicit PacketBuilderBase() noexcept = default;
-  explicit PacketBuilderBase(ConfigT config) noexcept : config_(std::move(config)) {}
+  explicit PacketBuilderBase(ConfigT config) noexcept
+      : config_(std::move(config)) {}
   auto setConfig(ConfigT config) noexcept { config_ = std::move(config); }
   auto getMutableConfig() noexcept -> ConfigT& { return config_; }
-  [[nodiscard]] auto getConfig() const noexcept -> const ConfigT& { return config_; }
-  auto reservePacket(size_t size) -> void {
-    packet_.clear();
-    packet_.reserve(size);
+  [[nodiscard]] auto getConfig() const noexcept -> const ConfigT& {
+    return config_;
   }
-  [[nodiscard]] auto getPacket() const noexcept -> const std::vector<uint8_t>& { return packet_; }
+  auto reservePacket(size_t size) -> void {
+    packet_vec_ = std::make_unique<std::vector<uint8_t>>(size);
+    packet_ = std::span<uint8_t>(*packet_vec_);
+  }
+  auto setBuffer(std::span<uint8_t> buffer) -> void {
+    packet_ = buffer;
+    if (packet_vec_) {
+      packet_vec_.reset();
+    }
+  }
+
+  [[nodiscard]] auto getTotalSize() const noexcept -> size_t {
+    return total_size_;
+  }
+
+  [[nodiscard]] auto getPacket() const noexcept -> std::span<const uint8_t> {
+    return packet_.subspan(0, total_size_);
+  }
 
   PacketBuilderBase(const PacketBuilderBase&) = delete;
   auto operator=(const PacketBuilderBase&) -> PacketBuilderBase& = delete;
   PacketBuilderBase(PacketBuilderBase&&) = delete;
   auto operator=(PacketBuilderBase&&) -> PacketBuilderBase& = delete;
 
-  virtual auto build() -> void = 0;
+  auto build() -> void {
+    buildImpl();
+  }
+
+  virtual auto buildImpl() -> void = 0;
 };
 
 struct ReadPacketConfig {
@@ -86,27 +131,35 @@ struct WriteReplyPacketConfig {
 };
 
 class ReadPacketBuilder final : public PacketBuilderBase<ReadPacketConfig> {
+ private:
+  [[nodiscard]] auto calcTotalSize_() const noexcept -> size_t override;
+
  public:
   using PacketBuilderBase<ReadPacketConfig>::PacketBuilderBase;
-  auto build() -> void override;
+  auto buildImpl() -> void override;
 };
 
 class WritePacketBuilder final : public PacketBuilderBase<WritePacketConfig> {
  public:
   using PacketBuilderBase<WritePacketConfig>::PacketBuilderBase;
-  auto build() -> void override;
+  auto buildImpl() -> void override;
+  [[nodiscard]] auto calcTotalSize_() const noexcept -> size_t override;
 };
 
-class WriteReplyPacketBuilder final : public PacketBuilderBase<WriteReplyPacketConfig> {
+class WriteReplyPacketBuilder final
+    : public PacketBuilderBase<WriteReplyPacketConfig> {
  public:
   using PacketBuilderBase<WriteReplyPacketConfig>::PacketBuilderBase;
-  auto build() -> void override;
+  auto buildImpl() -> void override;
+  [[nodiscard]] auto calcTotalSize_() const noexcept -> size_t override;
 };
 
-class ReadReplyPacketBuilder final : public PacketBuilderBase<ReadReplyPacketConfig> {
+class ReadReplyPacketBuilder final
+    : public PacketBuilderBase<ReadReplyPacketConfig> {
  public:
   using PacketBuilderBase<ReadReplyPacketConfig>::PacketBuilderBase;
-  auto build() -> void override;
+  auto buildImpl() -> void override;
+  [[nodiscard]] auto calcTotalSize_() const noexcept -> size_t override;
 };
 
 };  // namespace SpwRmap

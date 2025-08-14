@@ -30,7 +30,8 @@ class SpaceWireIFDummy final : public SpaceWireIF {
   void open() override {}
   void receive(std::vector<uint8_t>* buffer) override {
     std::unique_lock<std::mutex> lock(packet_mutex_);
-    cond_.wait_for(lock, std::chrono::milliseconds(100), [this] { return sent_.load(); });
+    cond_.wait_for(lock, std::chrono::milliseconds(100),
+                   [this] { return sent_.load(); });
     if (!sent_.load()) {
       return;
     }
@@ -48,11 +49,13 @@ class SpaceWireIFDummy final : public SpaceWireIF {
         .incrementMode = true,
     });
     read_reply_packet_builder_.build();
-    std::ranges::copy(read_reply_packet_builder_.getPacket(), std::back_inserter(*buffer));
+    std::ranges::copy(read_reply_packet_builder_.getPacket(),
+                      std::back_inserter(*buffer));
 
     sent_.store(false);
   }
-  void send(uint8_t* data, size_t length, SpaceWireEOPMarker::EOPType) override {
+  void send(uint8_t* data, size_t length,
+            SpaceWireEOPMarker::EOPType) override {
     std::lock_guard<std::mutex> lock(packet_mutex_);
     packet_data_.clear();
     packet_data_.insert(packet_data_.end(), data, data + length);
@@ -60,10 +63,7 @@ class SpaceWireIFDummy final : public SpaceWireIF {
     cond_.notify_all();
   }
   void setTxLinkRate(uint32_t) override {};
-  auto getTxLinkRateType() -> uint32_t override {
-    std::println("SpaceWireIFDummy: getTxLinkRateType called");
-    return 10;
-  }
+  auto getTxLinkRateType() -> uint32_t override { return 10; }
   void emitTimecode(uint8_t, uint8_t) override {}
   void setTimeoutDuration(double) override {}
   void cancelReceive() override {}
@@ -71,7 +71,9 @@ class SpaceWireIFDummy final : public SpaceWireIF {
     std::lock_guard<std::mutex> lock(packet_mutex_);
     return packet_data_;
   }
-  auto setTransactionID(uint16_t transaction_id) -> void { transaction_id_ = transaction_id; }
+  auto setTransactionID(uint16_t transaction_id) -> void {
+    transaction_id_ = transaction_id;
+  }
 };
 
 class LegacySpwRmapReadPacketBuilder {
@@ -92,31 +94,40 @@ class LegacySpwRmapReadPacketBuilder {
   }
 
  public:
-  LegacySpwRmapReadPacketBuilder(const LegacySpwRmapReadPacketBuilder&) = delete;
+  LegacySpwRmapReadPacketBuilder(const LegacySpwRmapReadPacketBuilder&) =
+      delete;
   LegacySpwRmapReadPacketBuilder(LegacySpwRmapReadPacketBuilder&&) = delete;
-  auto operator=(const LegacySpwRmapReadPacketBuilder&) -> LegacySpwRmapReadPacketBuilder& = delete;
-  auto operator=(LegacySpwRmapReadPacketBuilder&&) -> LegacySpwRmapReadPacketBuilder& = delete;
+  auto operator=(const LegacySpwRmapReadPacketBuilder&)
+      -> LegacySpwRmapReadPacketBuilder& = delete;
+  auto operator=(LegacySpwRmapReadPacketBuilder&&)
+      -> LegacySpwRmapReadPacketBuilder& = delete;
+  ~LegacySpwRmapReadPacketBuilder() = default;
 
   static auto build(SpwRmap::ReadPacketConfig config) {
     static std::once_flag flag;
-    std::call_once(flag, [] { instance_ptr_ = new LegacySpwRmapReadPacketBuilder(); });
+    std::call_once(
+        flag, [] { instance_ptr_ = new LegacySpwRmapReadPacketBuilder(); });
     RMAPTargetNode node;
     node.setInitiatorLogicalAddress(config.initiatorLogicalAddress);
     node.setTargetLogicalAddress(config.targetLogicalAddress);
     node.setDefaultKey(config.key);
-    std::vector<uint8_t> targetSpaceWireAddress(config.targetSpaceWireAddress.begin(),
-                                                config.targetSpaceWireAddress.end());
+    std::vector<uint8_t> targetSpaceWireAddress(
+        config.targetSpaceWireAddress.begin(),
+        config.targetSpaceWireAddress.end());
     node.setTargetSpaceWireAddress(targetSpaceWireAddress);
-    std::vector<uint8_t> replyAddress(config.replyAddress.begin(), config.replyAddress.end());
+    std::vector<uint8_t> replyAddress(config.replyAddress.begin(),
+                                      config.replyAddress.end());
     node.setReplyAddress(replyAddress);
-    instance_ptr_->rmap_initiator_->setInitiatorLogicalAddress(config.initiatorLogicalAddress);
+    instance_ptr_->rmap_initiator_->setInitiatorLogicalAddress(
+        config.initiatorLogicalAddress);
     instance_ptr_->rmap_initiator_->setTransactionID(config.transactionID);
     instance_ptr_->spwif_->setTransactionID(config.transactionID);
     instance_ptr_->rmap_initiator_->setIncrementMode(config.incrementMode);
     instance_ptr_->rmap_initiator_->setVerifyMode(false);
     instance_ptr_->rmap_initiator_->setReplyMode(true);
     std::vector<uint8_t> data(config.dataLength);
-    instance_ptr_->rmap_initiator_->read(&node, config.address, config.dataLength, data.data());
+    instance_ptr_->rmap_initiator_->read(&node, config.address,
+                                         config.dataLength, data.data());
     return instance_ptr_->spwif_->getPacketData();
   }
 
@@ -142,25 +153,32 @@ class LegacySpwRmapWritePacketBuilder {
   }
 
  public:
-  LegacySpwRmapWritePacketBuilder(const LegacySpwRmapWritePacketBuilder&) = delete;
+  LegacySpwRmapWritePacketBuilder(const LegacySpwRmapWritePacketBuilder&) =
+      delete;
   LegacySpwRmapWritePacketBuilder(LegacySpwRmapWritePacketBuilder&&) = delete;
   auto operator=(const LegacySpwRmapWritePacketBuilder&)
       -> LegacySpwRmapWritePacketBuilder& = delete;
-  auto operator=(LegacySpwRmapWritePacketBuilder&&) -> LegacySpwRmapWritePacketBuilder& = delete;
+  auto operator=(LegacySpwRmapWritePacketBuilder&&)
+      -> LegacySpwRmapWritePacketBuilder& = delete;
+  ~LegacySpwRmapWritePacketBuilder() = default;
 
   static auto build(SpwRmap::WritePacketConfig config) {
     static std::once_flag flag;
-    std::call_once(flag, [] { instance_ptr_ = new LegacySpwRmapWritePacketBuilder(); });
+    std::call_once(
+        flag, [] { instance_ptr_ = new LegacySpwRmapWritePacketBuilder(); });
     RMAPTargetNode node;
     node.setInitiatorLogicalAddress(config.initiatorLogicalAddress);
     node.setTargetLogicalAddress(config.targetLogicalAddress);
     node.setDefaultKey(config.key);
-    std::vector<uint8_t> targetSpaceWireAddress(config.targetSpaceWireAddress.begin(),
-                                                config.targetSpaceWireAddress.end());
+    std::vector<uint8_t> targetSpaceWireAddress(
+        config.targetSpaceWireAddress.begin(),
+        config.targetSpaceWireAddress.end());
     node.setTargetSpaceWireAddress(targetSpaceWireAddress);
-    std::vector<uint8_t> replyAddress(config.replyAddress.begin(), config.replyAddress.end());
+    std::vector<uint8_t> replyAddress(config.replyAddress.begin(),
+                                      config.replyAddress.end());
     node.setReplyAddress(replyAddress);
-    instance_ptr_->rmap_initiator_->setInitiatorLogicalAddress(config.initiatorLogicalAddress);
+    instance_ptr_->rmap_initiator_->setInitiatorLogicalAddress(
+        config.initiatorLogicalAddress);
     instance_ptr_->rmap_initiator_->setTransactionID(config.transactionID);
     instance_ptr_->spwif_->setTransactionID(config.transactionID);
     instance_ptr_->rmap_initiator_->setIncrementMode(config.incrementMode);
@@ -168,7 +186,8 @@ class LegacySpwRmapWritePacketBuilder {
     instance_ptr_->rmap_initiator_->setReplyMode(config.reply);
 
     instance_ptr_->rmap_initiator_->write(
-        &node, config.address, const_cast<uint8_t*>(config.data.data()), config.data.size());
+        &node, config.address, const_cast<uint8_t*>(config.data.data()),
+        config.data.size());
 
     return instance_ptr_->spwif_->getPacketData();
   }
@@ -211,21 +230,35 @@ TEST(PacketBuilder, ReadPacketBuilder) {
         .key = distribution(random_engine),
         .incrementMode = distribution(random_engine) % 2 == 0,
     };
-    auto legacy = LegacySpwRmapReadPacketBuilder::build(config);
+
+    auto legacy_packet = LegacySpwRmapReadPacketBuilder::build(config);
+
     auto read_packet_builder = SpwRmap::ReadPacketBuilder(config);
     read_packet_builder.build();
+
+    std::array<uint8_t, 1024> packet_buffer{};
+    auto read_packet_builder_fixed_buf = SpwRmap::ReadPacketBuilder(config);
+    read_packet_builder_fixed_buf.setBuffer(packet_buffer);
+    read_packet_builder_fixed_buf.build();
+
     auto packet_array = read_packet_builder.getPacket();
-    ASSERT_EQ(legacy, packet_array);
+    auto packet_array_fixed = read_packet_builder_fixed_buf.getPacket();
+
+    ASSERT_TRUE(std::ranges::equal(legacy_packet, packet_array));
+    ASSERT_TRUE(std::ranges::equal(legacy_packet, packet_array_fixed));
 
     SpwRmap::PacketParser parser;
     auto status = parser.parse(packet_array);
-    ASSERT_EQ(status, SpwRmap::PacketParser::StatusCode::Success);
+    ASSERT_EQ(status, SpwRmap::PacketParser::Status::Success);
 
+    ASSERT_TRUE(std::ranges::equal(parser.getPacket().targetSpaceWireAddress,
+                                   targetSpaceWireAddress));
     ASSERT_TRUE(
-        std::ranges::equal(parser.getPacket().targetSpaceWireAddress, targetSpaceWireAddress));
-    ASSERT_TRUE(std::ranges::equal(parser.getPacket().replyAddress, replyAddress));
-    ASSERT_EQ(parser.getPacket().targetLogicalAddress, config.targetLogicalAddress);
-    ASSERT_EQ(parser.getPacket().initiatorLogicalAddress, config.initiatorLogicalAddress);
+        std::ranges::equal(parser.getPacket().replyAddress, replyAddress));
+    ASSERT_EQ(parser.getPacket().targetLogicalAddress,
+              config.targetLogicalAddress);
+    ASSERT_EQ(parser.getPacket().initiatorLogicalAddress,
+              config.initiatorLogicalAddress);
     ASSERT_EQ(parser.getPacket().transactionID, config.transactionID);
     ASSERT_EQ(parser.getPacket().extendedAddress, config.extendedAddress);
     ASSERT_EQ(parser.getPacket().address, config.address);
@@ -272,25 +305,37 @@ TEST(PacketBuilder, WritePacketBuilder) {
         .verifyMode = distribution(random_engine) % 2 == 0,
         .data = data,
     };
-    auto legacy = LegacySpwRmapWritePacketBuilder::build(config);
+    auto legacy_packet = LegacySpwRmapWritePacketBuilder::build(config);
     auto read_packet_builder = SpwRmap::WritePacketBuilder(config);
     read_packet_builder.build();
+
+    std::array<uint8_t, 1024> packet_buffer{};
+    auto read_packet_builder_fixed_array = SpwRmap::WritePacketBuilder(config);
+    read_packet_builder_fixed_array.setBuffer(packet_buffer);
+    read_packet_builder_fixed_array.build();
+
     auto packet_array = read_packet_builder.getPacket();
-    ASSERT_EQ(legacy, packet_array);
+    auto packet_array_fixed = read_packet_builder_fixed_array.getPacket();
+    ASSERT_TRUE(std::ranges::equal(legacy_packet, packet_array));
+    ASSERT_TRUE(std::ranges::equal(legacy_packet, packet_array_fixed));
 
-    SpwRmap::PacketParser parser;
-    auto status = parser.parse(packet_array);
-    ASSERT_EQ(status, SpwRmap::PacketParser::StatusCode::Success);
-
-    ASSERT_TRUE(
-        std::ranges::equal(parser.getPacket().targetSpaceWireAddress, targetSpaceWireAddress));
-    ASSERT_TRUE(std::ranges::equal(parser.getPacket().replyAddress, replyAddress));
-    ASSERT_EQ(parser.getPacket().targetLogicalAddress, config.targetLogicalAddress);
-    ASSERT_EQ(parser.getPacket().initiatorLogicalAddress, config.initiatorLogicalAddress);
-    ASSERT_EQ(parser.getPacket().transactionID, config.transactionID);
-    ASSERT_EQ(parser.getPacket().key, config.key);
-    ASSERT_EQ(parser.getPacket().extendedAddress, config.extendedAddress);
-    ASSERT_EQ(parser.getPacket().address, config.address);
-    ASSERT_TRUE(std::ranges::equal(parser.getPacket().data, config.data));
+    {  // Test PacketParser
+      SpwRmap::PacketParser parser;
+      auto status = parser.parse(packet_array);
+      ASSERT_EQ(status, SpwRmap::PacketParser::Status::Success);
+      ASSERT_TRUE(std::ranges::equal(parser.getPacket().targetSpaceWireAddress,
+                                     targetSpaceWireAddress));
+      ASSERT_TRUE(
+          std::ranges::equal(parser.getPacket().replyAddress, replyAddress));
+      ASSERT_EQ(parser.getPacket().targetLogicalAddress,
+                config.targetLogicalAddress);
+      ASSERT_EQ(parser.getPacket().initiatorLogicalAddress,
+                config.initiatorLogicalAddress);
+      ASSERT_EQ(parser.getPacket().transactionID, config.transactionID);
+      ASSERT_EQ(parser.getPacket().key, config.key);
+      ASSERT_EQ(parser.getPacket().extendedAddress, config.extendedAddress);
+      ASSERT_EQ(parser.getPacket().address, config.address);
+      ASSERT_TRUE(std::ranges::equal(parser.getPacket().data, config.data));
+    }
   }
 }

@@ -52,22 +52,33 @@ class LegacySpwRmap::SpwPImpl {
       rmap_initiator->setInitiatorLogicalAddress(0xFE);
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
     } catch (CxxUtilities::Exception &e) {
-      throw std::runtime_error(std::format("Failed to start RMAP engine: {}", e.toString()));
+      throw std::runtime_error(
+          std::format("Failed to start RMAP engine: {}", e.toString()));
     }
   };
 
  public:
+  SpwPImpl(const SpwPImpl &) = delete;
+  SpwPImpl(SpwPImpl &&) = delete;
+  auto operator=(const SpwPImpl &) -> SpwPImpl & = delete;
+  auto operator=(SpwPImpl &&) -> SpwPImpl & = delete;
   explicit SpwPImpl(std::string_view ip_address, uint32_t port) {
     try {
-      spwif = std::make_unique<SpaceWireIFOverTCP>(std::string(ip_address), port);
+      spwif =
+          std::make_unique<SpaceWireIFOverTCP>(std::string(ip_address), port);
       spwif->open();
       rmap_engine = std::make_unique<RMAPEngine>(spwif.get());
     } catch (CxxUtilities::Exception &e) {
-      throw std::runtime_error(
-          std::format("Failed to initialize SpaceWire interface: {}", e.toString()));
+      throw std::runtime_error(std::format(
+          "Failed to initialize SpaceWire interface: {}", e.toString()));
     }
   };
 
+  /**
+   * @brief Destructor for SpwPImpl.
+   *
+   * Stops the RMAP engine if it is started.
+   */
   ~SpwPImpl() {
     if (rmap_engine->isStarted()) {
       rmap_engine->stop();
@@ -90,7 +101,7 @@ class LegacySpwRmap::SpwPImpl {
     std::unique_ptr<XMLNode> node;
 
     XMLLoader loader;
-    XMLNode *topnode;
+    XMLNode *topnode = nullptr;
 
     join_span(std::span{target_node.target_spacewire_address});
 
@@ -102,16 +113,18 @@ class LegacySpwRmap::SpwPImpl {
         <ReplyAddress>{}</ReplyAddress>
         <Key>{}</Key>
       </RMAPTargetNode>)",
-                    target_node.logical_address, join_span(target_node.target_spacewire_address),
+                    target_node.logical_address,
+                    join_span(target_node.target_spacewire_address),
                     join_span(target_node.reply_address), 2);
 
     loader.loadFromString(&topnode, xml_string);
     auto rmap_target_node = RMAPTargetNode::constructFromXMLNode(topnode);
-    target_nodes.insert(std::make_pair(target_node.logical_address, rmap_target_node));
+    target_nodes.insert(
+        std::make_pair(target_node.logical_address, rmap_target_node));
   }
 
-  auto write(uint8_t logical_address, uint32_t memory_address, const std::span<const uint8_t> data)
-      -> void {
+  auto write(uint8_t logical_address, uint32_t memory_address,
+             const std::span<const uint8_t> data) -> void {
     if (rmap_engine->isStarted() == false) {
       start_();
     }
@@ -120,16 +133,19 @@ class LegacySpwRmap::SpwPImpl {
     }
     RMAPTargetNode *target_node = target_nodes[logical_address];
     try {
-      rmap_initiator->write(target_node, memory_address, (uint8_t *)(data.data()), data.size());
+      rmap_initiator->write(target_node, memory_address,
+                            (uint8_t *)(data.data()), data.size());
     } catch (RMAPInitiatorException &e) {
-      throw std::runtime_error(std::format("RMAPInitiatorException: {}", e.toString()));
+      throw std::runtime_error(
+          std::format("RMAPInitiatorException: {}", e.toString()));
     } catch (RMAPReplyException &e) {
-      throw std::runtime_error(std::format("RMAPReplyException: {}", e.toString()));
+      throw std::runtime_error(
+          std::format("RMAPReplyException: {}", e.toString()));
     }
   }
 
-  auto read(uint8_t logical_address, uint32_t memory_address, const std::span<uint8_t> buffer)
-      -> void {
+  auto read(uint8_t logical_address, uint32_t memory_address,
+            const std::span<uint8_t> buffer) -> void {
     if (rmap_engine->isStarted() == false) {
       start_();
     }
@@ -138,11 +154,14 @@ class LegacySpwRmap::SpwPImpl {
     }
     auto target_node_ptr = target_nodes.at(logical_address);
     try {
-      rmap_initiator->read(target_node_ptr, memory_address, buffer.size(), buffer.data());
+      rmap_initiator->read(target_node_ptr, memory_address, buffer.size(),
+                           buffer.data());
     } catch (RMAPInitiatorException &e) {
-      throw std::runtime_error(std::format("RMAPInitiatorException: {}", e.toString()));
+      throw std::runtime_error(
+          std::format("RMAPInitiatorException: {}", e.toString()));
     } catch (RMAPReplyException &e) {
-      throw std::runtime_error(std::format("RMAPReplyException: {}", e.toString()));
+      throw std::runtime_error(
+          std::format("RMAPReplyException: {}", e.toString()));
     }
   }
 
@@ -165,6 +184,8 @@ auto LegacySpwRmap::read(uint8_t logical_address, uint32_t memory_address,
                          const std::span<uint8_t> data) -> void {
   impl_->read(logical_address, memory_address, data);
 }
-auto LegacySpwRmap::emitTimeCode(uint8_t timecode) -> void { impl_->emitTimeCode(timecode); }
+auto LegacySpwRmap::emitTimeCode(uint8_t timecode) -> void {
+  impl_->emitTimeCode(timecode);
+}
 
 };  // namespace SpwRmap

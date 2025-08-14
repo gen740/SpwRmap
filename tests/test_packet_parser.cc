@@ -27,16 +27,13 @@ TEST(PacketParser, ReadReplyPacket) {
   });
   packetBuilder.build();
 
-  for (const auto& byte : packetBuilder.getPacket()) {
-    std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(byte) << " ";
-  }
-
   try {
     RMAPPacket packet;
     packet.setTransactionID(0x00);
     packet.setReply();
-    packet.interpretAsAnRMAPPacket(const_cast<uint8_t*>(packetBuilder.getPacket().data()),
-                                   packetBuilder.getPacket().size());
+    packet.interpretAsAnRMAPPacket(
+        const_cast<uint8_t*>(packetBuilder.getPacket().data()),
+        packetBuilder.getPacket().size());
 
   } catch (CxxUtilities::Exception& e) {
     FAIL() << "Exception thrown during packet parsing: " << e.toString();

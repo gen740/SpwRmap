@@ -145,6 +145,9 @@ static inline auto gai_category() noexcept -> const std::error_category& {
     std::chrono::microseconds send_timeout,
     std::chrono::microseconds connect_timeout) noexcept
     -> std::expected<std::monostate, std::error_code> {
+  if (fd_ >= 0) {
+    return std::unexpected{std::make_error_code(std::errc::already_connected)};
+  }
   addrinfo hints{};
   hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
