@@ -117,8 +117,7 @@ class SpwRmap : public SpwRmapBase {
       return std::unexpected{std::make_error_code(std::errc::not_connected)};
     }
     if (recv_buffer_.size() < 12) {
-      return std::unexpected{
-          std::make_error_code(std::errc::not_enough_memory)};
+      return std::unexpected{std::make_error_code(std::errc::no_buffer_space)};
     }
     return recvExact_(recv_buffer_.subspan(0, 12))
         .and_then(
@@ -135,7 +134,7 @@ class SpwRmap : public SpwRmapBase {
                              static_cast<uint64_t>(recv_buffer_[11]));
               if (extra_length > 0 || data_length > recv_buffer_.size() - 12) {
                 return std::unexpected{
-                    std::make_error_code(std::errc::not_enough_memory)};
+                    std::make_error_code(std::errc::no_buffer_space)};
               }
               return recvExact_(recv_buffer_.subspan(12, data_length));
             })

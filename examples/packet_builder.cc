@@ -4,7 +4,7 @@
 
 #include "SpwRmap/PacketBuilder.hh"
 
-int main() {
+auto main() -> int {
   std::array<uint8_t, 4> targetSpaceWireAddress = {0x01, 0x02, 0x03, 0x04};
   std::array<uint8_t, 4> replyAddress = {0x05, 0x06, 0x07, 0x08};
   SpwRmap::ReadPacketConfig config = {
@@ -18,7 +18,11 @@ int main() {
       .dataLength = 0x00000004,
       .key = 0xAB,
       .incrementMode = true};
-  SpwRmap::ReadPacketBuilder read_packet_builder(config);
-  read_packet_builder.build();
-
+  SpwRmap::ReadPacketBuilder read_packet_builder;
+  auto res = read_packet_builder.build(config);
+  if (!res.has_value()) {
+    std::cerr << "Failed to build packet: " << res.error().message()
+              << std::endl;
+    return 1;
+  }
 }

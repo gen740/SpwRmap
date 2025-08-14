@@ -39,7 +39,7 @@ class SpaceWireIFDummy final : public SpaceWireIF {
 
     std::vector<uint8_t> replyAddress = {};
     std::vector<uint8_t> data = {0x01, 0x02, 0x03, 0x04};
-    read_reply_packet_builder_.setConfig({
+    auto res = read_reply_packet_builder_.build({
         .replyAddress = replyAddress,
         .initiatorLogicalAddress = 0x35,
         .status = 0x00,
@@ -48,8 +48,10 @@ class SpaceWireIFDummy final : public SpaceWireIF {
         .data = data,
         .incrementMode = true,
     });
-    read_reply_packet_builder_.build();
-    std::ranges::copy(read_reply_packet_builder_.getPacket(),
+    if (!res.has_value()) {
+      FAIL() << "Failed to build read reply packet: " << res.error().message();
+    }
+    std::ranges::copy(*read_reply_packet_builder_.getPacket(),
                       std::back_inserter(*buffer));
 
     sent_.store(false);
@@ -186,7 +188,8 @@ class LegacySpwRmapWritePacketBuilder {
     instance_ptr_->rmap_initiator_->setReplyMode(config.reply);
 
     instance_ptr_->rmap_initiator_->write(
-        &node, config.address, const_cast<uint8_t*>(config.data.data()),
+        &node, config.address,
+        const_cast<uint8_t*>(config.data.data()),  // NOLINT
         config.data.size());
 
     return instance_ptr_->spwif_->getPacketData();
@@ -196,7 +199,7 @@ class LegacySpwRmapWritePacketBuilder {
   inline static LegacySpwRmapWritePacketBuilder* instance_ptr_;
 };
 
-std::mt19937 random_engine(std::random_device{}());
+std::mt19937 random_engine(std::random_device{}());  // NOLINT
 
 TEST(PacketBuilder, ReadPacketBuilder) {
   std::uniform_int_distribution<uint8_t> distribution(0, 255);
@@ -233,16 +236,27 @@ TEST(PacketBuilder, ReadPacketBuilder) {
 
     auto legacy_packet = LegacySpwRmapReadPacketBuilder::build(config);
 
-    auto read_packet_builder = SpwRmap::ReadPacketBuilder(config);
-    read_packet_builder.build();
+    auto read_packet_builder = SpwRmap::ReadPacketBuilder();
+    {
+      auto res = read_packet_builder.build(config);
+      if (!res.has_value()) {
+        FAIL() << "Failed to build read packet: " << res.error().message();
+      }
+    }
 
     std::array<uint8_t, 1024> packet_buffer{};
-    auto read_packet_builder_fixed_buf = SpwRmap::ReadPacketBuilder(config);
+    auto read_packet_builder_fixed_buf = SpwRmap::ReadPacketBuilder();
     read_packet_builder_fixed_buf.setBuffer(packet_buffer);
-    read_packet_builder_fixed_buf.build();
+    {
+      auto res = read_packet_builder_fixed_buf.build(config);
+      if (!res.has_value()) {
+        FAIL() << "Failed to build read packet with fixed buffer: "
+               << res.error().message();
+      }
+    }
 
-    auto packet_array = read_packet_builder.getPacket();
-    auto packet_array_fixed = read_packet_builder_fixed_buf.getPacket();
+    auto packet_array = *read_packet_builder.getPacket();
+    auto packet_array_fixed = *read_packet_builder_fixed_buf.getPacket();
 
     ASSERT_TRUE(std::ranges::equal(legacy_packet, packet_array));
     ASSERT_TRUE(std::ranges::equal(legacy_packet, packet_array_fixed));
@@ -306,16 +320,27 @@ TEST(PacketBuilder, WritePacketBuilder) {
         .data = data,
     };
     auto legacy_packet = LegacySpwRmapWritePacketBuilder::build(config);
-    auto read_packet_builder = SpwRmap::WritePacketBuilder(config);
-    read_packet_builder.build();
+    auto read_packet_builder = SpwRmap::WritePacketBuilder();
+    {
+      auto res = read_packet_builder.build(config);
+      if (!res.has_value()) {
+        FAIL() << "Failed to build write packet: " << res.error().message();
+      }
+    }
 
     std::array<uint8_t, 1024> packet_buffer{};
-    auto read_packet_builder_fixed_array = SpwRmap::WritePacketBuilder(config);
+    auto read_packet_builder_fixed_array = SpwRmap::WritePacketBuilder();
     read_packet_builder_fixed_array.setBuffer(packet_buffer);
-    read_packet_builder_fixed_array.build();
+    {
+      auto res = read_packet_builder_fixed_array.build(config);
+      if (!res.has_value()) {
+        FAIL() << "Failed to build write packet with fixed buffer: "
+               << res.error().message();
+      }
+    }
 
-    auto packet_array = read_packet_builder.getPacket();
-    auto packet_array_fixed = read_packet_builder_fixed_array.getPacket();
+    auto packet_array = *read_packet_builder.getPacket();
+    auto packet_array_fixed = *read_packet_builder_fixed_array.getPacket();
     ASSERT_TRUE(std::ranges::equal(legacy_packet, packet_array));
     ASSERT_TRUE(std::ranges::equal(legacy_packet, packet_array_fixed));
 

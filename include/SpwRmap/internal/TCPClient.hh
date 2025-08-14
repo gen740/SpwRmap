@@ -9,6 +9,13 @@
 namespace SpwRmap::internal {
 
 using namespace std::chrono_literals;
+
+/**
+ * @class TCPClient
+ * @brief A class for managing TCP connections.
+ *
+ * This TCPClient are supposed to be used for RMAP communication over TCP.
+ */
 class TCPClient {
  private:
   int fd_ = -1;
