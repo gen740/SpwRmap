@@ -135,6 +135,14 @@ class PacketBuilderBase {
   }
 
   /**
+   * @brief Get the total size of the packet.
+   * @return size_t The total size of the packet.
+   */
+  [[nodiscard]] auto getTotalSize() const noexcept -> size_t {
+    return total_size_;
+  }
+
+  /**
    * @brief Build the packet based on the provided configuration.
    *
    * @param config The configuration object containing parameters for the
