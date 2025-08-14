@@ -40,7 +40,10 @@ write_basic_package_version_file(
   COMPATIBILITY SameMajorVersion)
 
 file(GLOB HEADER_FILES ${CMAKE_SOURCE_DIR}/include/SpwRmap/*.hh)
+file(GLOB HEADER_FILES_INTERNAL
+     ${CMAKE_SOURCE_DIR}/include/SpwRmap/internal/*.hh)
 install(FILES ${HEADER_FILES} DESTINATION include/SpwRmap)
+install(FILES ${HEADER_FILES_INTERNAL} DESTINATION include/SpwRmap/internal)
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/SpwRmapConfig.cmake
               ${CMAKE_CURRENT_BINARY_DIR}/SpwRmapConfigVersion.cmake
