@@ -1,5 +1,5 @@
 
-#pragma once
+#pragma oncew
 
 #include <print>
 #include <utility>
@@ -237,7 +237,7 @@ class PacketParser {
     packet_.instruction = packet[head + 2];
 
     bool is_command = (packet_.instruction & 0b01000000) != 0;
-    bool is_write = (packet_.instruction & std::to_underlying(RMAPPacketType::Write)) != 0;
+    bool is_write = (packet_.instruction & std::to_underlying(RMAPCommandCode::Write)) != 0;
 
     switch (is_command << 1 | is_write) {
       case 0b00:  // Read reply

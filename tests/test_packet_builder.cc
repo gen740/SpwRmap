@@ -23,6 +23,9 @@ class SpaceWireIFDummy final : public SpaceWireIF {
 
   uint16_t transaction_id_{0};
 
+  SpwRmap::ReadReplyPacketBuilder read_reply_packet_builder_;
+  SpwRmap::WriteReplyPacketBuilder write_reply_packet_builder_;
+
  public:
   void open() override {}
   void receive(std::vector<uint8_t>* buffer) override {
@@ -32,26 +35,21 @@ class SpaceWireIFDummy final : public SpaceWireIF {
       return;
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    buffer->push_back(0x35);                    // Initiator logical address
-    buffer->push_back(0x01);                    // Protocol identifier
-    buffer->push_back(0b00001101);              // RMAP packet type (Read)
-    buffer->push_back(0x00);                    // Status
-    buffer->push_back(0xEF);                    // Target logical address
-    buffer->push_back(transaction_id_ >> 8);    // Transaction ID (high byte)
-    buffer->push_back(transaction_id_ & 0xFF);  // Transaction ID (low byte)
-    buffer->push_back(0x00);                    // Reserved byte
 
-    buffer->push_back(0x00);  // Data length
-    buffer->push_back(0x00);  // Data length
-    buffer->push_back(0x04);  // Data length
-    auto crc = SpwRmap::calcCRC(std::span(*buffer));
-    buffer->push_back(crc);
+    std::vector<uint8_t> replyAddress = {};
     std::vector<uint8_t> data = {0x01, 0x02, 0x03, 0x04};
-    for (const auto& byte : data) {
-      buffer->push_back(byte);
-    }
-    auto data_crc = SpwRmap::calcCRC(data);
-    buffer->push_back(data_crc);
+    read_reply_packet_builder_.setConfig({
+        .replyAddress = replyAddress,
+        .initiatorLogicalAddress = 0x35,
+        .status = 0x00,
+        .targetLogicalAddress = 0xEF,
+        .transactionID = transaction_id_,
+        .data = data,
+        .incrementMode = true,
+    });
+    read_reply_packet_builder_.build();
+    std::ranges::copy(read_reply_packet_builder_.getPacket(), std::back_inserter(*buffer));
+
     sent_.store(false);
   }
   void send(uint8_t* data, size_t length, SpaceWireEOPMarker::EOPType) override {

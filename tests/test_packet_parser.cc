@@ -12,36 +12,33 @@
 // #include "Packe
 #include "SpwRmap/PacketBuilder.hh"
 
-struct writeReplyPacketConfig {
-  uint8_t initiatorLogicalAddress;
-  uint8_t status;
-  uint8_t targetLogicalAddress;
-  uint16_t transactionID;
-};
+TEST(PacketParser, ReadReplyPacket) {
+  std::vector<uint8_t> replyAddress = {};
+  std::vector<uint8_t> data = {0x01, 0x02, 0x03, 0x04};
+  auto packetBuilder = SpwRmap::ReadReplyPacketBuilder();
+  packetBuilder.setConfig({
+      .replyAddress = replyAddress,
+      .initiatorLogicalAddress = 0x35,
+      .status = 0x00,
+      .targetLogicalAddress = 0xEF,
+      .transactionID = 0x00,
+      .data = data,
+      .incrementMode = true,
+  });
+  packetBuilder.build();
 
-auto makeWriteReplyPacket(writeReplyPacketConfig config) -> std::vector<uint8_t> {
-  std::vector<uint8_t> packet;
-  packet.push_back(config.initiatorLogicalAddress);
-  packet.push_back(0x01);        // Protocol Identifier
-  packet.push_back(0b00001110);  // RMAP packet type (Write Reply)
-  packet.push_back(config.status);
-  packet.push_back(config.targetLogicalAddress);
-  packet.push_back(config.transactionID >> 8);    // Transaction ID (high byte)
-  packet.push_back(config.transactionID & 0xFF);  // Transaction ID (low byte)
-  packet.push_back(0x00);                         // Reserved byte
-  auto crc = SpwRmap::calcCRC(std::span(packet));
-  packet.push_back(crc);
-  return packet;
+  for (const auto& byte : packetBuilder.getPacket()) {
+    std::cout << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(byte) << " ";
+  }
+
+  try {
+    RMAPPacket packet;
+    packet.setTransactionID(0x00);
+    packet.setReply();
+    packet.interpretAsAnRMAPPacket(const_cast<uint8_t*>(packetBuilder.getPacket().data()),
+                                   packetBuilder.getPacket().size());
+
+  } catch (CxxUtilities::Exception& e) {
+    FAIL() << "Exception thrown during packet parsing: " << e.toString();
+  }
 }
-
-// TEST(PacketParser, WriteReplyPacket) {
-//   auto config = writeReplyPacketConfig{
-//       .initiatorLogicalAddress = 0x35,
-//       .status = 0x00,
-//       .targetLogicalAddress = 0xEF,
-//       .transactionID = 0x0000,
-//   };
-//   auto packet = makeWriteReplyPacket(config);
-//   RMAPPacket legacy_packet;
-//   legacy_packet.interpretAsAnRMAPPacket(packet);
-// }
