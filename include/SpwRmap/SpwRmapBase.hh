@@ -8,7 +8,10 @@
 #pragma once
 
 #include <cstdint>
+#include <expected>
 #include <span>
+#include <system_error>
+#include <variant>
 
 #include "SpwRmap/TargetNode.hh"
 
@@ -52,7 +55,8 @@ class SpwRmapBase {
    * @param data Data to write.
    */
   virtual auto write(uint8_t logical_address, uint32_t memory_address,
-                     const std::span<const uint8_t> data) -> void = 0;
+                     const std::span<const uint8_t> data)
+      -> std::expected<std::monostate, std::error_code> = 0;
 
   /**
    * @brief Reads data from a target node.
@@ -65,7 +69,8 @@ class SpwRmapBase {
    * @param data Reference to a span where the read data will be stored.
    */
   virtual auto read(uint8_t logical_address, uint32_t memory_address,
-                    const std::span<uint8_t> data) -> void = 0;
+                    const std::span<uint8_t> data)
+      -> std::expected<std::monostate, std::error_code> = 0;
 
   /**
    * @brief Emits a time code.
@@ -74,7 +79,8 @@ class SpwRmapBase {
    *
    * @param timecode Time code to emit.
    */
-  virtual auto emitTimeCode(uint8_t timecode) -> void = 0;
+  virtual auto emitTimeCode(uint8_t timecode)
+      -> std::expected<std::monostate, std::error_code> = 0;
 };
 
 }  // namespace SpwRmap

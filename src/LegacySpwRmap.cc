@@ -176,16 +176,39 @@ auto LegacySpwRmap::addTargetNode(const TargetNode &target_node) -> void {
   impl_->addTargetNode(target_node);
 }
 auto LegacySpwRmap::write(uint8_t logical_address, uint32_t memory_address,
-                          const std::span<const uint8_t> data) -> void {
-  impl_->write(logical_address, memory_address, data);
+                          const std::span<const uint8_t> data)
+    -> std::expected<std::monostate, std::error_code> {
+  try {
+    impl_->write(logical_address, memory_address, data);
+  } catch (const std::invalid_argument &e) {
+    return std::unexpected(std::make_error_code(std::errc::invalid_argument));
+  } catch (const std::runtime_error &e) {
+    return std::unexpected(std::make_error_code(std::errc::io_error));
+  }
+  return std::monostate{};
 }
 
 auto LegacySpwRmap::read(uint8_t logical_address, uint32_t memory_address,
-                         const std::span<uint8_t> data) -> void {
-  impl_->read(logical_address, memory_address, data);
+                         const std::span<uint8_t> data)
+    -> std::expected<std::monostate, std::error_code> {
+  try {
+    impl_->read(logical_address, memory_address, data);
+  } catch (const std::invalid_argument &e) {
+    return std::unexpected(std::make_error_code(std::errc::invalid_argument));
+  } catch (const std::runtime_error &e) {
+    return std::unexpected(std::make_error_code(std::errc::io_error));
+  }
+  return std::monostate{};
 }
-auto LegacySpwRmap::emitTimeCode(uint8_t timecode) -> void {
-  impl_->emitTimeCode(timecode);
+
+auto LegacySpwRmap::emitTimeCode(uint8_t timecode)
+    -> std::expected<std::monostate, std::error_code> {
+  try {
+    impl_->emitTimeCode(timecode);
+  } catch (const std::runtime_error &e) {
+    return std::unexpected(std::make_error_code(std::errc::io_error));
+  }
+  return std::monostate{};
 }
 
 };  // namespace SpwRmap

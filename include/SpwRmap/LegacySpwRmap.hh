@@ -20,15 +20,22 @@ namespace SpwRmap {
 
 class LegacySpwRmap final : public SpwRmapBase {
  public:
+  LegacySpwRmap(const LegacySpwRmap &) = delete;
+  LegacySpwRmap(LegacySpwRmap &&) = delete;
+  auto operator=(const LegacySpwRmap &) -> LegacySpwRmap & = delete;
+  auto operator=(LegacySpwRmap &&) -> LegacySpwRmap & = delete;
   explicit LegacySpwRmap(std::string_view ip_address, uint32_t port);
   ~LegacySpwRmap() override;
 
-  auto addTargetNode(const TargetNode& target_node) -> void final;
-  auto write(uint8_t logical_address, uint32_t memory_address, const std::span<const uint8_t> data)
-      -> void final;
-  auto read(uint8_t logical_address, uint32_t memory_address, const std::span<uint8_t> data)
-      -> void final;
-  auto emitTimeCode(uint8_t timecode) -> void final;
+  auto addTargetNode(const TargetNode &target_node) -> void final;
+  auto write(uint8_t logical_address, uint32_t memory_address,
+             const std::span<const uint8_t> data)
+      -> std::expected<std::monostate, std::error_code> final;
+  auto read(uint8_t logical_address, uint32_t memory_address,
+            const std::span<uint8_t> data)
+      -> std::expected<std::monostate, std::error_code> final;
+  auto emitTimeCode(uint8_t timecode)
+      -> std::expected<std::monostate, std::error_code> final;
 
  private:
   class SpwPImpl;

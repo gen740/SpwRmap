@@ -160,23 +160,23 @@ class SpwRmap : public SpwRmapBase {
   }
 
   auto write(uint8_t logical_address, uint32_t memory_address,
-             const std::span<const uint8_t> data) -> void override {
+             const std::span<const uint8_t> data)
+      -> std::expected<std::monostate, std::error_code> override {
     if (!tcp_client_) {
-      throw std::runtime_error("TCP client is not initialized.");
+      return std::unexpected{std::make_error_code(std::errc::not_connected)};
     }
     auto target_node = std::ranges::find_if(
         target_nodes_, [logical_address](const TargetNode &node) {
           return node.logical_address == logical_address;
         });
     if (target_node == target_nodes_.end()) {
-      throw std::runtime_error(std::format(
-          "Target node with logical address {} not found.", logical_address));
+      return std::unexpected{std::make_error_code(std::errc::invalid_argument)};
     }
     auto expected_length = target_node->target_spacewire_address.size() +
                            (target_node->reply_address.size() + 3) / 4 * 4 + 4 +
                            12 + 1 + data.size();
     if (expected_length > send_buffer_.size()) {
-      throw std::runtime_error("Data size exceeds send buffer size.");
+      return std::unexpected{std::make_error_code(std::errc::no_buffer_space)};
     }
 
     auto res = write_packet_builder_.build({
@@ -189,8 +189,7 @@ class SpwRmap : public SpwRmapBase {
         .data = data,
     });
     if (!res.has_value()) {
-      throw std::runtime_error(std::format("Failed to build write packet: {}",
-                                           res.error().message()));
+      return std::unexpected{res.error()};
     }
     auto total_size = write_packet_builder_.getTotalSize();
     send_buffer_[0] = 0x00;
@@ -207,8 +206,7 @@ class SpwRmap : public SpwRmapBase {
     send_buffer_[11] = static_cast<uint8_t>((total_size >> 0) & 0xFF);
     auto res_send = tcp_client_->sendAll(send_buffer_.subspan(0, total_size));
     if (!res_send.has_value()) {
-      throw std::runtime_error(std::format("Failed to send write packet: {}",
-                                           res_send.error().message()));
+      return std::unexpected{res_send.error()};
     }
 
     size_t max_trial_count = 10;
@@ -216,36 +214,35 @@ class SpwRmap : public SpwRmapBase {
     do {
       auto recvRes = recvAndParseOnePacket();
       if (!recvRes.has_value()) {
-        throw std::runtime_error(std::format("Failed to receive reply: {}",
-                                             recvRes.error().message()));
+        return std::unexpected{recvRes.error()};
       }
       trial_count++;
       if (trial_count >= max_trial_count) {
-        throw std::runtime_error(
-            "Maximum number of trials reached while waiting for write reply.");
+        return std::unexpected{std::make_error_code(std::errc::timed_out)};
       }
     } while (packet_parser_.getPacket().type != PacketType::WriteReply &&
              packet_parser_.getPacket().transactionID != 0x0123);
+    return {};
   }
 
   auto read(uint8_t logical_address, uint32_t memory_address,
-            const std::span<uint8_t> data) -> void override {
+            const std::span<uint8_t> data)
+      -> std::expected<std::monostate, std::error_code> override {
     if (!tcp_client_) {
-      throw std::runtime_error("TCP client is not initialized.");
+      return std::unexpected{std::make_error_code(std::errc::not_connected)};
     }
     auto target_node = std::ranges::find_if(
         target_nodes_, [logical_address](const TargetNode &node) {
           return node.logical_address == logical_address;
         });
     if (target_node == target_nodes_.end()) {
-      throw std::runtime_error(std::format(
-          "Target node with logical address {} not found.", logical_address));
+      return std::unexpected{std::make_error_code(std::errc::invalid_argument)};
     }
     auto expected_length = target_node->target_spacewire_address.size() +
                            (target_node->reply_address.size() + 3) / 4 * 4 + 4 +
                            12 + 1;
     if (expected_length > send_buffer_.size()) {
-      throw std::runtime_error("Data size exceeds send buffer size.");
+      return std::unexpected{std::make_error_code(std::errc::no_buffer_space)};
     }
     auto res = read_packet_builder_.build({
         .targetSpaceWireAddress = target_node->target_spacewire_address,
@@ -257,8 +254,7 @@ class SpwRmap : public SpwRmapBase {
         .dataLength = static_cast<uint32_t>(data.size()),
     });
     if (!res.has_value()) {
-      throw std::runtime_error(std::format("Failed to build write packet: {}",
-                                           res.error().message()));
+      return std::unexpected{res.error()};
     }
     auto total_size = write_packet_builder_.getTotalSize();
     send_buffer_[0] = 0x00;
@@ -275,8 +271,7 @@ class SpwRmap : public SpwRmapBase {
     send_buffer_[11] = static_cast<uint8_t>((total_size >> 0) & 0xFF);
     auto res_send = tcp_client_->sendAll(send_buffer_.subspan(0, total_size));
     if (!res_send.has_value()) {
-      throw std::runtime_error(std::format("Failed to send write packet: {}",
-                                           res_send.error().message()));
+      return std::unexpected{res_send.error()};
     }
 
     size_t max_trial_count = 10;
@@ -284,13 +279,11 @@ class SpwRmap : public SpwRmapBase {
     do {
       auto recvRes = recvAndParseOnePacket();
       if (!recvRes.has_value()) {
-        throw std::runtime_error(std::format("Failed to receive reply: {}",
-                                             recvRes.error().message()));
+        return std::unexpected{recvRes.error()};
       }
       trial_count++;
       if (trial_count >= max_trial_count) {
-        throw std::runtime_error(
-            "Maximum number of trials reached while waiting for write reply.");
+        return std::unexpected{std::make_error_code(std::errc::timed_out)};
       }
     } while (packet_parser_.getPacket().type != PacketType::ReadReply &&
              packet_parser_.getPacket().transactionID != 0x0123);
@@ -298,15 +291,15 @@ class SpwRmap : public SpwRmapBase {
       std::copy(packet_parser_.getPacket().data.begin(),
                 packet_parser_.getPacket().data.end(), data.begin());
     } else {
-      throw std::runtime_error(
-          "Received data size does not match requested size.");
+      return std::unexpected{std::make_error_code(std::errc::invalid_argument)};
     }
+    return {};
   }
 
-  auto emitTimeCode(uint8_t timecode) -> void override {
+  auto emitTimeCode(uint8_t timecode)
+      -> std::expected<std::monostate, std::error_code> override {
     if (!tcp_client_) {
-      // TODO: use expected
-      throw std::runtime_error("TCP client is not initialized.");
+      return std::unexpected{std::make_error_code(std::errc::not_connected)};
     }
     std::array<uint8_t, 14> packet{};
     packet.at(0) = 0x30;
@@ -316,13 +309,7 @@ class SpwRmap : public SpwRmapBase {
     }
     packet.at(12) = timecode;
     packet.at(13) = 0x00;
-
-    auto res = tcp_client_->sendAll(packet);
-    if (!res.has_value()) {
-      // TODO: use expected
-      throw std::runtime_error(
-          std::format("Failed to send time code: {}", res.error().message()));
-    }
+    return tcp_client_->sendAll(packet);
   }
 };
 
