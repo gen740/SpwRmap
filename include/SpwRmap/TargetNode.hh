@@ -7,7 +7,7 @@
 #pragma once
 
 #include <cstdint>
-#include <span>
+#include <vector>
 
 namespace SpwRmap {
 
@@ -20,8 +20,8 @@ struct TargetNode {
    */
   uint8_t logical_address;
 
-  std::span<uint8_t> target_spacewire_address;
-  std::span<uint8_t> reply_address;
+  std::vector<uint8_t> target_spacewire_address;
+  std::vector<uint8_t> reply_address;
 };
 
 };  // namespace SpwRmap
