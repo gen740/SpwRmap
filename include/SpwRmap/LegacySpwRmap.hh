@@ -11,6 +11,7 @@
 
 #include <memory>
 #include <span>
+#include <string_view>
 
 #include "SpwRmap/SpwRmapBase.hh"
 #include "SpwRmap/TargetNode.hh"

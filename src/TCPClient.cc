@@ -11,6 +11,7 @@
 #include <unistd.h>
 
 #include <chrono>
+#include <print>
 #include <span>
 #include <system_error>
 
@@ -18,26 +19,35 @@ namespace SpwRmap::internal {
 
 using namespace std::chrono_literals;
 
-auto connect_with_timeout_(const int fd, const sockaddr* addr, socklen_t addrlen,
-                           std::chrono::microseconds timeout) -> void {
+auto connect_with_timeout_(const int fd, const sockaddr* addr,
+                           socklen_t addrlen,
+                           std::chrono::microseconds timeout) noexcept
+    -> std::expected<std::monostate, std::error_code> {
   if (timeout < std::chrono::microseconds::zero()) {
-    throw std::invalid_argument("connect_with_timeout_: negative timeout");
+    return std::unexpected{std::make_error_code(std::errc::invalid_argument)};
   }
+  const auto ms64 =
+      std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count();
   const int ms =
-      static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count());
+      ms64 > static_cast<long long>(INT_MAX) ? INT_MAX : static_cast<int>(ms64);
 
   const int oldfl = ::fcntl(fd, F_GETFL);
   if (oldfl < 0) {
-    throw std::system_error(errno, std::system_category(), "fcntl(F_GETFL)");
+    return std::unexpected{std::error_code(errno, std::system_category())};
   }
   const bool was_blocking = (oldfl & O_NONBLOCK) == 0;
   if (was_blocking) {
     if (::fcntl(fd, F_SETFL, oldfl | O_NONBLOCK) < 0) {
-      throw std::system_error(errno, std::system_category(), "fcntl(F_SETFL, O_NONBLOCK)");
+      return std::unexpected{std::error_code(errno, std::system_category())};
     }
   }
 
   struct Restore {
+    Restore(const Restore&) = delete;
+    Restore(Restore&&) = delete;
+    auto operator=(const Restore&) -> Restore& = delete;
+    auto operator=(Restore&&) -> Restore& = delete;
+    Restore(int fd, int fl, bool on) : fd(fd), fl(fl), on(on) {}
     int fd;
     int fl;
     bool on;
@@ -46,7 +56,7 @@ auto connect_with_timeout_(const int fd, const sockaddr* addr, socklen_t addrlen
         (void)::fcntl(fd, F_SETFL, fl);
       }
     }
-  } restore{.fd = fd, .fl = oldfl, .on = was_blocking};
+  } restore{fd, oldfl, was_blocking};
 
   int rc = 0;
   do {
@@ -54,11 +64,11 @@ auto connect_with_timeout_(const int fd, const sockaddr* addr, socklen_t addrlen
   } while (rc != 0 && errno == EINTR);
 
   if (rc == 0) {
-    return;  // Connected immediately.
+    return {};  // Connected immediately.
   }
 
   if (errno != EINPROGRESS) {
-    throw std::system_error(errno, std::system_category(), "connect");
+    return std::unexpected{std::error_code(errno, std::system_category())};
   }
   pollfd pfd{.fd = fd, .events = POLLOUT, .revents = 0};
   int prc = 0;
@@ -67,98 +77,144 @@ auto connect_with_timeout_(const int fd, const sockaddr* addr, socklen_t addrlen
   } while (prc < 0 && errno == EINTR);
 
   if (prc == 0) {
-    throw std::system_error(ETIMEDOUT, std::system_category(), "connect timeout");
+    return std::unexpected{std::error_code(ETIMEDOUT, std::system_category())};
   }
   if (prc < 0) {
-    throw std::system_error(errno, std::system_category(), "poll(connect)");
+    return std::unexpected{std::error_code(errno, std::system_category())};
   }
 
   int soerr = 0;
   auto slen = static_cast<socklen_t>(sizeof(soerr));
   if (::getsockopt(fd, SOL_SOCKET, SO_ERROR, &soerr, &slen) != 0) {
-    throw std::system_error(errno, std::system_category(), "getsockopt(SO_ERROR)");
+    return std::unexpected{std::error_code(errno, std::system_category())};
   }
   if (soerr != 0) {
-    throw std::system_error(soerr, std::system_category(), "connect");
+    return std::unexpected{std::error_code(soerr, std::system_category())};
   }
+  return {};
 }
 
-auto set_sockopts(int fd) -> void {
+auto set_sockopts(int fd) noexcept
+    -> std::expected<std::monostate, std::error_code> {
   int yes = 1;
   if (::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes)) != 0) {
-    throw std::system_error(errno, std::system_category(), "setsockopt(TCP_NODELAY)");
+    return std::unexpected{std::error_code(errno, std::system_category())};
   }
 #ifdef __APPLE__
   if (::setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &yes, sizeof(yes)) != 0) {
-    throw std::system_error(errno, std::system_category(), "setsockopt(SO_NOSIGPIPE)");
+    return std::unexpected{std::error_code(errno, std::system_category())};
   }
 #endif
   const int fdflags = ::fcntl(fd, F_GETFD);
   if (fdflags < 0 || ::fcntl(fd, F_SETFD, fdflags | FD_CLOEXEC) < 0) {
-    throw std::system_error(errno, std::system_category(), "fcntl(FD_CLOEXEC)");
+    return std::unexpected{std::error_code(errno, std::system_category())};
   }
+  return {};
 }
 
-auto TCPClient::close_retry_(int& fd) -> void {
+auto TCPClient::close_retry_(int fd) noexcept -> void {
   if (fd >= 0) {
     auto r = 0;
     do {
       r = ::close(fd);
     } while (r < 0 && errno == EINTR);
-    fd = -1;
   }
 }
 
-TCPClient::TCPClient(std::string_view ip_address, uint32_t port,
-                     std::chrono::microseconds recv_timeout, std::chrono::microseconds send_timeout,
-                     std::chrono::microseconds connect_timeout) {
+TCPClient::~TCPClient() {
+  close_retry_(fd_);
+  fd_ = -1;
+}
+
+struct gai_category_t final : std::error_category {
+  [[nodiscard]] auto name() const noexcept -> const char* override {
+    return "gai";
+  }
+  [[nodiscard]] auto message(int ev) const -> std::string override {
+    return ::gai_strerror(ev);
+  }
+};
+
+static inline auto gai_category() noexcept -> const std::error_category& {
+  static const gai_category_t cat{};
+  return cat;
+}
+
+[[nodiscard]] auto TCPClient::connect(
+    std::chrono::microseconds recv_timeout,
+    std::chrono::microseconds send_timeout,
+    std::chrono::microseconds connect_timeout) noexcept
+    -> std::expected<std::monostate, std::error_code> {
   addrinfo hints{};
   hints.ai_family = AF_INET;
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_protocol = IPPROTO_TCP;
 
-  std::string port_str = std::to_string(port);
   addrinfo* res = nullptr;
-  if (int rc = ::getaddrinfo(std::string(ip_address).c_str(), port_str.c_str(), &hints, &res);
+  if (int rc = ::getaddrinfo(std::string(ip_address_).c_str(),
+                             std::string(port_).c_str(), &hints, &res);
       rc != 0) {
-    throw std::runtime_error(std::string("getaddrinfo: ") + gai_strerror(rc));
+    if (rc == EAI_SYSTEM) {
+      return std::unexpected{std::error_code(errno, std::system_category())};
+    } else {
+      return std::unexpected{std::error_code(rc, gai_category())};
+    }
   }
 
-  std::system_error last{EINVAL, std::system_category(), "no address succeeded"};
+  std::expected<std::monostate, std::error_code> last =
+      std::unexpected(std::make_error_code(std::errc::invalid_argument));
 
   for (addrinfo* ai = res; ai != nullptr; ai = ai->ai_next) {
     fd_ = ::socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
     if (fd_ < 0) {
-      last = {errno, std::system_category(), "socket"};
-      continue;
-    }
-    try {
-      internal::set_sockopts(fd_);
-      setSendTimeout(send_timeout);
-      setRecvTimeout(recv_timeout);
-      connect_with_timeout_(fd_, ai->ai_addr, ai->ai_addrlen, connect_timeout);
-      break;  // success
-    } catch (const std::system_error& e) {
-      last = e;
+      last = std::unexpected{std::error_code(errno, std::system_category())};
       close_retry_(fd_);
       fd_ = -1;
+      continue;
     }
+    last = internal::set_sockopts(fd_)
+               .and_then([this, send_timeout](auto) {
+                 return setSendTimeout(send_timeout);
+               })
+               .and_then([this, recv_timeout](auto) {
+                 return setRecvTimeout(recv_timeout);
+               })
+               .and_then([this, connect_timeout, ai](auto) {
+                 return connect_with_timeout_(fd_, ai->ai_addr, ai->ai_addrlen,
+                                              connect_timeout);
+               });
+    if (!last.has_value()) {
+      continue;
+    }
+    break;  // success
   }
 
   ::freeaddrinfo(res);
   if (fd_ < 0) {
     fd_ = -1;
-    throw last;
   }
+  return last;
 }
-TCPClient::~TCPClient() { close_retry_(fd_); }
-auto TCPClient::setRecvTimeout(std::chrono::microseconds timeout) -> void {
+
+auto TCPClient::disconnect() noexcept -> void { close_retry_(fd_); }
+
+auto TCPClient::reconnect(std::chrono::microseconds recv_timeout,
+                          std::chrono::microseconds send_timeout,
+                          std::chrono::microseconds connect_timeout) noexcept
+    -> std::expected<std::monostate, std::error_code> {
+  disconnect();
+  fd_ = -1;
+  return connect(recv_timeout, send_timeout, connect_timeout);
+}
+
+auto TCPClient::setRecvTimeout(std::chrono::microseconds timeout) noexcept
+    -> std::expected<std::monostate, std::error_code> {
   if (timeout < std::chrono::microseconds::zero()) {
-    throw std::invalid_argument("SO_RCVTIMEO: negative timeout");
+    return std::unexpected{std::make_error_code(std::errc::invalid_argument)};
   }
 
-  const auto tv_sec =
-      static_cast<time_t>(std::chrono::duration_cast<std::chrono::seconds>(timeout).count());
+  const auto tv_sec = static_cast<time_t>(
+      std::chrono::duration_cast<std::chrono::seconds>(timeout).count());
   const auto tv_usec = static_cast<suseconds_t>(timeout.count() % 1000000);
 
   timeval tv{};
@@ -166,15 +222,18 @@ auto TCPClient::setRecvTimeout(std::chrono::microseconds timeout) -> void {
   tv.tv_usec = tv_usec;
 
   if (::setsockopt(fd_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) != 0) {
-    throw std::system_error(errno, std::system_category(), "setsockopt(SO_RCVTIMEO)");
+    return std::unexpected{std::error_code(errno, std::system_category())};
   }
+  return {};
 }
-auto TCPClient::setSendTimeout(std::chrono::microseconds timeout) -> void {
+
+auto TCPClient::setSendTimeout(std::chrono::microseconds timeout) noexcept
+    -> std::expected<std::monostate, std::error_code> {
   if (timeout < std::chrono::microseconds::zero()) {
-    throw std::invalid_argument("SO_SNDTIMEO: negative timeout");
+    return std::unexpected{std::make_error_code(std::errc::invalid_argument)};
   }
-  const auto tv_sec =
-      static_cast<time_t>(std::chrono::duration_cast<std::chrono::seconds>(timeout).count());
+  const auto tv_sec = static_cast<time_t>(
+      std::chrono::duration_cast<std::chrono::seconds>(timeout).count());
   const auto tv_usec = static_cast<suseconds_t>(timeout.count() % 1000000);
 
   timeval tv{};
@@ -182,10 +241,13 @@ auto TCPClient::setSendTimeout(std::chrono::microseconds timeout) -> void {
   tv.tv_usec = tv_usec;
 
   if (::setsockopt(fd_, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) != 0) {
-    throw std::system_error(errno, std::system_category(), "setsockopt(SO_SNDTIMEO)");
+    return std::unexpected{std::error_code(errno, std::system_category())};
   }
+  return {};
 }
-auto TCPClient::send_all(std::span<const uint8_t> data) -> void {
+
+auto TCPClient::sendAll(std::span<const uint8_t> data) noexcept
+    -> std::expected<std::monostate, std::error_code> {
   while (!data.empty()) {
 #ifndef __APPLE__
     constexpr int kFlags = MSG_NOSIGNAL;
@@ -198,9 +260,9 @@ auto TCPClient::send_all(std::span<const uint8_t> data) -> void {
         continue;
       }
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        throw std::runtime_error("send: timeout");
+        return std::unexpected{std::make_error_code(std::errc::timed_out)};
       }
-      throw std::system_error{errno, std::system_category(), "send"};
+      return std::unexpected{std::error_code(errno, std::system_category())};
     }
     if (n == 0) {
       // Not EOF for send(); treat as transient and retry.
@@ -208,8 +270,11 @@ auto TCPClient::send_all(std::span<const uint8_t> data) -> void {
     }
     data = data.subspan(static_cast<size_t>(n));
   }
+  return {};
 }
-auto TCPClient::recv_some(std::span<uint8_t> buf) -> size_t {
+
+auto TCPClient::recvSome(std::span<uint8_t> buf) noexcept
+    -> std::expected<size_t, std::error_code> {
   if (buf.empty()) {
     return 0U;  // Nothing to receive
   }
@@ -220,11 +285,12 @@ auto TCPClient::recv_some(std::span<uint8_t> buf) -> size_t {
         continue;
       }
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        throw std::runtime_error("recv: timeout");
+        return std::unexpected{std::make_error_code(std::errc::timed_out)};
       }
-      throw std::system_error{errno, std::system_category(), "recv"};
+      return std::unexpected{std::error_code(errno, std::system_category())};
     }
     return static_cast<size_t>(n);
   }
 }
+
 }  // namespace SpwRmap::internal

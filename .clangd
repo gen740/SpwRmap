@@ -1,17 +1,8 @@
 CompileFlags:
-  Add: 
+  Add:
     - -Wall
     - -Werror
     - -Wextra
     - -Wpedantic
 
   CompilationDatabase: ./build
-
-Diagnostics:
-  ClangTidy:
-    Add:
-      - modernize*
-      - bugprone*
-
-    Remove:
-      - bugprone-easily-swappable-parameters

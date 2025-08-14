@@ -1,0 +1,15 @@
+Checks:
+  - modernize-*
+  - bugprone-*
+  - cppcoreguidelines-*
+  - -bugprone-easily-swappable-parameters
+  - -cppcoreguidelines-avoid-magic-numbers
+  - -modernize-use-std-numbers
+  - -cppcoreguidelines-owning-memory
+  - -cppcoreguidelines-pro-type-vararg
+  - -cppcoreguidelines-pro-bounds-pointer-arithmetic
+  - -cppcoreguidelines-avoid-do-while
+
+WarningsAsErrors: '*'
+HeaderFilterRegex: '.*'
+FormatStyle: file

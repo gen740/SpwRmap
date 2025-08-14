@@ -7,7 +7,7 @@
 #pragma once
 
 #include <span>
-#include <string_view>
+#include <string>
 
 #include "SpwRmap/SpwRmapBase.hh"
 

@@ -30,27 +30,27 @@ static auto pick_free_port() -> uint16_t {
   sin.sin_family = AF_INET;
   sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
   sin.sin_port = htons(0);
-  r = ::bind(fd, reinterpret_cast<sockaddr*>(&sin), sizeof(sin));
+  r = ::bind(fd, reinterpret_cast<sockaddr*>(&sin), sizeof(sin));  // NOLINT
   if (r != 0) {
     const int e = errno;
     (void)::close(fd);
     throw std::system_error(e, std::system_category(), "bind");
   }
   socklen_t sl = sizeof(sin);
-  r = ::getsockname(fd, reinterpret_cast<sockaddr*>(&sin), &sl);
+  r = ::getsockname(fd, reinterpret_cast<sockaddr*>(&sin), &sl);  // NOLINT
   if (r != 0) {
     const int e = errno;
     (void)::close(fd);
     throw std::system_error(e, std::system_category(), "getsockname");
   }
   const uint16_t port = ntohs(sin.sin_port);
-  do {
+  do {  // NOLINT
     r = ::close(fd);
   } while (r < 0 && errno == EINTR);
   return port;
 }
 
-std::mt19937 rng(std::random_device{}());
+std::mt19937 rng(std::random_device{}());  // NOLINT
 
 TEST(TcpClientServer, ServerRecieve) {
   size_t TEST_BUFFER_SIZE = 1024UL;
@@ -64,15 +64,24 @@ TEST(TcpClientServer, ServerRecieve) {
 
   std::thread th([&]() {
     try {
-      TCPServer server("127.0.0.1", port, 500ms, 500ms);
+      std::string port_str = std::to_string(port);
+      TCPServer server("127.0.0.1", port_str);
+      auto res = server.accept_once(500ms, 500ms);
+      if (!res.has_value()) {
+        FAIL() << "Failed to accept connection: " << res.error().message();
+      }
       auto total_recvd = 0U;
 
       std::vector<uint8_t> buf;
       buf.resize(16);
       while (!server_stop.load(std::memory_order_acquire)) {
         auto n = server.recv_some(buf);
-        std::ranges::copy(std::span(buf).subspan(0, n), server_recv_buf.begin() + total_recvd);
-        total_recvd += n;
+        if (!n.has_value()) {
+          FAIL() << "Server recv_some failed: " << n.error().message();
+        }
+        std::ranges::copy(std::span(buf).subspan(0, *n),
+                          server_recv_buf.begin() + total_recvd);
+        total_recvd += *n;
         if (total_recvd == TEST_BUFFER_SIZE) {
           break;
         }
@@ -83,7 +92,12 @@ TEST(TcpClientServer, ServerRecieve) {
     }
   });
 
-  TCPClient client("localhost", port, 500ms, 500ms, 500ms);
+  std::string port_str = std::to_string(port);
+  TCPClient client("localhost", port_str);
+  auto res = client.connect(500ms, 500ms, 500ms);
+  if (!res.has_value()) {
+    FAIL() << "Failed to connect to server: " << res.error().message();
+  }
 
   std::vector<uint8_t> msg;
   msg.resize(TEST_BUFFER_SIZE);
@@ -98,7 +112,11 @@ TEST(TcpClientServer, ServerRecieve) {
     if (mes_size_sent + mes_size > msg.size()) {
       mes_size = msg.size() - mes_size_sent;
     }
-    client.send_all(std::span<const uint8_t>(msg.data() + mes_size_sent, mes_size));
+    auto res = client.sendAll(
+        std::span<const uint8_t>(msg.data() + mes_size_sent, mes_size));
+    if (!res.has_value()) {
+      FAIL() << "Client send_all failed: " << res.error().message();
+    }
     mes_size_sent += mes_size;
   }
   std::this_thread::sleep_for(100ms);  // Give server time to process.
@@ -109,7 +127,8 @@ TEST(TcpClientServer, ServerRecieve) {
   if (th.joinable()) {
     th.join();
   }
-  EXPECT_FALSE(server_emit_error) << "Server thread emitted an error during execution.";
+  EXPECT_FALSE(server_emit_error)
+      << "Server thread emitted an error during execution.";
 }
 
 TEST(TcpClientServer, ClientRecieve) {
@@ -126,14 +145,23 @@ TEST(TcpClientServer, ClientRecieve) {
   bool server_emit_error = false;
   std::thread th([&]() {
     try {
-      TCPServer server("127.0.0.1", port, 500ms, 500ms);
+      std::string port_str = std::to_string(port);
+      TCPServer server("127.0.0.1", port_str);
+      auto res = server.accept_once(500ms, 500ms);
+      if (!res.has_value()) {
+        FAIL() << "Failed to accept connection: " << res.error().message();
+      }
       size_t mes_size_sent = 0;
       while (mes_size_sent < msg.size()) {
         size_t mes_size = std::uniform_int_distribution<>(1, 32)(rng);
         if (mes_size_sent + mes_size > msg.size()) {
           mes_size = msg.size() - mes_size_sent;
         }
-        server.send_all(std::span<const uint8_t>(msg.data() + mes_size_sent, mes_size));
+        auto res = server.send_all(
+            std::span<const uint8_t>(msg.data() + mes_size_sent, mes_size));
+        if (!res.has_value()) {
+          FAIL() << "Server send_all failed: " << res.error().message();
+        }
         mes_size_sent += mes_size;
       }
     } catch (const std::system_error& e) {
@@ -142,7 +170,12 @@ TEST(TcpClientServer, ClientRecieve) {
     }
   });
 
-  TCPClient client("localhost", port, 500ms, 500ms, 500ms);
+  std::string port_str = std::to_string(port);
+  TCPClient client("localhost", port_str);
+  auto res = client.connect(500ms, 500ms, 500ms);
+  if (!res.has_value()) {
+    FAIL() << "Failed to connect to server: " << res.error().message();
+  }
   std::vector<uint8_t> client_recv_buf;
   client_recv_buf.resize(TEST_BUFFER_SIZE);
 
@@ -150,9 +183,13 @@ TEST(TcpClientServer, ClientRecieve) {
   buf.resize(16);
   auto total_recvd = 0U;
   while (true) {
-    auto n = client.recv_some(buf);
-    std::ranges::copy(std::span(buf).subspan(0, n), client_recv_buf.begin() + total_recvd);
-    total_recvd += n;
+    auto n = client.recvSome(buf);
+    if (!n.has_value()) {
+      FAIL() << "Client recv_some failed: " << n.error().message();
+    }
+    std::ranges::copy(std::span(buf).subspan(0, *n),
+                      client_recv_buf.begin() + total_recvd);
+    total_recvd += *n;
     if (total_recvd == TEST_BUFFER_SIZE) {
       break;
     }
@@ -162,5 +199,6 @@ TEST(TcpClientServer, ClientRecieve) {
   if (th.joinable()) {
     th.join();
   }
-  EXPECT_FALSE(server_emit_error) << "Server thread emitted an error during execution.";
+  EXPECT_FALSE(server_emit_error)
+      << "Server thread emitted an error during execution.";
 }

@@ -18,18 +18,4 @@ enum class RMAPCommandCode : uint8_t {
   IncrementAddress = 0b00000100,       // Incremental address operation
 };
 
-// enum class RMAPCommandCode : uint8_t {
-//   ReadSingleAddress = 0,
-//   ReadIncrementingAddress = 0,
-//   // ReadModifyWriteIncrementingAddress = 0,
-//   WriteSingleAddressNoVerifyNoReply = 0,
-//   WriteIncrementingAddressNoVerifyNoReply = 0,
-//   WriteSingleAddressNoVerify = 0,
-//   WriteIncrementingAddressNoVerify = 0,
-//   WriteSingleAddressVerifyNoReply = 0,
-//   WriteIncrementingAddressVerifyNoReply = 0,
-//   WriteSingleAddressVerify = 0,
-//   WriteIncrementingAddressVerify = 0,
-// };
-
 }  // namespace SpwRmap

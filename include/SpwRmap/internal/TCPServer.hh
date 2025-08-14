@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <expected>
 #include <span>
 
 namespace SpwRmap::internal {
@@ -13,7 +14,9 @@ class TCPServer {
   int listen_fd_ = -1;  // listening socket
   int client_fd_ = -1;  // accepted client socket
 
-  static auto close_retry_(int& fd) noexcept -> void;
+  static auto close_retry_(int fd) noexcept -> void;
+  std::string_view bind_address_;
+  std::string_view port_;
 
  public:
   TCPServer() = delete;
@@ -22,22 +25,26 @@ class TCPServer {
   TCPServer(TCPServer&&) = delete;
   auto operator=(TCPServer&&) -> TCPServer& = delete;
 
-  // Constructor binds, listens, and accepts one client.
-  TCPServer(std::string_view bind_address, uint32_t port,
-            std::chrono::microseconds send_timeout = 200ms,
-            std::chrono::microseconds recv_timeout = 200ms);
+  TCPServer(std::string_view bind_address, std::string_view port) noexcept
+      : bind_address_(bind_address), port_(port) {};
 
-  ~TCPServer();
+  ~TCPServer() noexcept;
 
-  auto setRecvTimeout(std::chrono::microseconds timeout) -> void;
+  auto accept_once(std::chrono::microseconds send_timeout = 200ms,
+                   std::chrono::microseconds recv_timeout = 200ms) noexcept
+      -> std::expected<std::monostate, std::error_code>;
 
-  auto setSendTimeout(std::chrono::microseconds timeout) -> void;
+  auto setRecvTimeout(std::chrono::microseconds timeout) noexcept
+      -> std::expected<std::monostate, std::error_code>;
 
-  // Write all bytes or throw; retries on EINTR; treats 0 as transient.
-  auto send_all(std::span<const uint8_t> data) -> void;
+  auto setSendTimeout(std::chrono::microseconds timeout) noexcept
+      -> std::expected<std::monostate, std::error_code>;
 
-  // Read up to buf.size() bytes; returns 0 on EOF; retries on EINTR.
-  auto recv_some(std::span<uint8_t> buf) -> std::size_t;
+  auto send_all(std::span<const uint8_t> data) noexcept
+      -> std::expected<std::monostate, std::error_code>;
+
+  auto recv_some(std::span<uint8_t> buf) noexcept
+      -> std::expected<size_t, std::error_code>;
 };
 
 }  // namespace SpwRmap::internal

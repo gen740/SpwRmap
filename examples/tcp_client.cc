@@ -5,7 +5,13 @@
 using namespace std::chrono_literals;
 
 auto main() -> int {
-  auto client = SpwRmap::internal::TCPClient("localhost", 10032, 100ms, 100ms);
+  auto client = SpwRmap::internal::TCPClient("localhost", "10032");
+  auto res = client.connect(500ms, 500ms, 500ms);
+  if (!res.has_value()) {
+    std::println("Failed to connect to the server. Error: {}",
+                 res.error().message());
+    return 1;
+  }
   std::vector<uint8_t> buffer;
   buffer.resize(1024);
 
@@ -14,10 +20,10 @@ auto main() -> int {
   buffer[2] = 0x03;
   buffer[3] = 0x04;
 
-  try {
-    client.send_all(std::span<const uint8_t>(buffer.data(), 4));
-  } catch (const std::system_error& e) {
-    std::println("Error receiving data: {}", e.what());
+  res = client.sendAll(std::span<const uint8_t>(buffer.data(), 4));
+  if (!res.has_value()) {
+    std::println("Failed to send data. Error: {}", res.error().message());
+    return 1;
   }
 
   for (const auto& byte : buffer) {

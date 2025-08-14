@@ -21,8 +21,10 @@ auto main() -> int {
   SpwRmap::TargetNode target_node;
   target_node.logical_address = 0xF2;
 
-  target_node.target_spacewire_address = {2};
-  target_node.reply_address = {3};
+  std::array<uint8_t, 1> target_spacewire_address = {2};
+  target_node.target_spacewire_address = target_spacewire_address;
+  std::array<uint8_t, 1> reply_address = {3};
+  target_node.reply_address = reply_address;
 
   spw_rmap.addTargetNode(target_node);
 

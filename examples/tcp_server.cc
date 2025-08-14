@@ -5,8 +5,14 @@
 
 using namespace std::chrono_literals;
 
-int main() {
-  auto server = SpwRmap::internal::TCPServer("0.0.0.0", 10032, 100ms, 100ms);
+auto main() -> int {
+  auto server = SpwRmap::internal::TCPServer("0.0.0.0", "10032");
+  auto res = server.accept_once(500ms, 500ms);
+  if (!res.has_value()) {
+    std::println("Failed to accept a connection. Error: {}",
+                 res.error().message());
+    return 1;
+  }
   std::vector<uint8_t> buffer;
   buffer.resize(1024);
 

@@ -22,7 +22,11 @@ class PacketBuilderBase {
   explicit PacketBuilderBase(ConfigT config) noexcept : config_(std::move(config)) {}
   auto setConfig(ConfigT config) noexcept { config_ = std::move(config); }
   auto getMutableConfig() noexcept -> ConfigT& { return config_; }
-
+  [[nodiscard]] auto getConfig() const noexcept -> const ConfigT& { return config_; }
+  auto reservePacket(size_t size) -> void {
+    packet_.clear();
+    packet_.reserve(size);
+  }
   [[nodiscard]] auto getPacket() const noexcept -> const std::vector<uint8_t>& { return packet_; }
 
   PacketBuilderBase(const PacketBuilderBase&) = delete;
