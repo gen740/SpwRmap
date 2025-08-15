@@ -81,7 +81,15 @@ class LegacySpwRmap::SpwPImpl {
    */
   ~SpwPImpl() {
     if (rmap_engine->isStarted()) {
-      rmap_engine->stop();
+      try {
+        rmap_engine->stop();
+      } catch (const std::exception &e) {
+        std::println(stderr, "Failed to stop RMAP engine: {}", e.what());
+        std::terminate();
+      } catch (CxxUtilities::Exception &e) {
+        std::println(stderr, "Failed to stop RMAP engine: {}", e.toString());
+        std::terminate();
+      }
     }
   };
 
@@ -134,7 +142,8 @@ class LegacySpwRmap::SpwPImpl {
     RMAPTargetNode *target_node = target_nodes[logical_address];
     try {
       rmap_initiator->write(target_node, memory_address,
-                            (uint8_t *)(data.data()), data.size());
+                            const_cast<uint8_t *>(data.data()),  // NOLINT
+                            data.size());
     } catch (RMAPInitiatorException &e) {
       throw std::runtime_error(
           std::format("RMAPInitiatorException: {}", e.toString()));
@@ -175,6 +184,7 @@ LegacySpwRmap::~LegacySpwRmap() = default;
 auto LegacySpwRmap::addTargetNode(const TargetNode &target_node) -> void {
   impl_->addTargetNode(target_node);
 }
+
 auto LegacySpwRmap::write(uint8_t logical_address, uint32_t memory_address,
                           const std::span<const uint8_t> data)
     -> std::expected<std::monostate, std::error_code> {

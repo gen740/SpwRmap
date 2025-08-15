@@ -13,8 +13,12 @@ auto main() -> int {
     return 1;
   }
   std::vector<uint8_t> buffer;
-  buffer.resize(1024);
-
+  try {
+    buffer.resize(1024);
+  } catch (const std::bad_alloc& e) {
+    std::println("Failed to allocate memory for the buffer: {}", e.what());
+    return 1;
+  }
   buffer[0] = 0x01;  // Example data to send
   buffer[1] = 0x02;
   buffer[2] = 0x03;

@@ -7,19 +7,23 @@ using namespace std::chrono_literals;
 
 auto main() -> int {
   auto server = SpwRmap::internal::TCPServer("0.0.0.0", "10032");
-  auto res = server.accept_once(500ms, 500ms);
-  if (!res.has_value()) {
-    std::println("Failed to accept a connection. Error: {}",
-                 res.error().message());
-    return 1;
+  {
+    auto res = server.accept_once(500ms, 500ms);
+    if (!res.has_value()) {
+      std::println("Failed to accept a connection. Error: {}",
+                   res.error().message());
+      return 1;
+    }
   }
   std::vector<uint8_t> buffer;
   buffer.resize(1024);
 
-  try {
-    server.recv_some(buffer);
-  } catch (const std::system_error& e) {
-    std::println("Error receiving data: {}", e.what());
+  {
+    auto res = server.recv_some(buffer);
+    if (!res.has_value()) {
+      std::println("Failed to receive data. Error: {}", res.error().message());
+      return 1;
+    }
   }
 
   for (const auto& byte : buffer) {
