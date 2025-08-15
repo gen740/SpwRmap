@@ -19,7 +19,7 @@ auto main() -> int {
   buffer.resize(1024);
 
   {
-    auto res = server.recv_some(buffer);
+    auto res = server.recvSome(buffer);
     if (!res.has_value()) {
       std::println("Failed to receive data. Error: {}", res.error().message());
       return 1;

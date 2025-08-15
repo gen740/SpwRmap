@@ -33,8 +33,7 @@ class SpwRmap : public SpwRmapBase {
   PacketParser packet_parser_ = {};
   ReadPacketBuilder read_packet_builder_ = {};
   WritePacketBuilder write_packet_builder_ = {};
-
-  std::vector<TargetNode> target_nodes_ = {};
+  uint8_t initiator_logical_address_ = 0xFE;
 
  public:
   explicit SpwRmap(std::string_view ip_address, uint32_t port) noexcept
@@ -49,6 +48,10 @@ class SpwRmap : public SpwRmapBase {
   auto initialize(std::span<uint8_t> send_buffer,
                   std::span<uint8_t> recv_buffer) -> void;
 
+  auto setInitiatorLogicalAddress(uint8_t address) -> void {
+    initiator_logical_address_ = address;
+  }
+
  private:
   auto recvExact_(std::span<uint8_t> buffer)
       -> std::expected<std::size_t, std::error_code>;
@@ -59,15 +62,11 @@ class SpwRmap : public SpwRmapBase {
       -> std::expected<std::size_t, std::error_code>;
 
  public:
-  auto addTargetNode(const TargetNode &target_node) -> void override;
-
-  auto addTargetNode(TargetNode &&target_node) -> void override;
-
-  auto write(uint8_t logical_address, uint32_t memory_address,
+  auto write(const TargetNodeBase& target_node, uint32_t memory_address,
              const std::span<const uint8_t> data)
       -> std::expected<std::monostate, std::error_code> override;
 
-  auto read(uint8_t logical_address, uint32_t memory_address,
+  auto read(const TargetNodeBase& target_node, uint32_t memory_address,
             const std::span<uint8_t> data)
       -> std::expected<std::monostate, std::error_code> override;
 

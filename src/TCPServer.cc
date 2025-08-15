@@ -12,6 +12,7 @@
 #include <chrono>
 #include <cstdint>
 #include <cstring>
+#include <print>
 #include <span>
 #include <string>
 #include <system_error>
@@ -209,7 +210,7 @@ auto TCPServer::setSendTimeout(std::chrono::microseconds timeout) noexcept
   return {};
 }
 
-auto TCPServer::send_all(std::span<const uint8_t> data) noexcept
+auto TCPServer::sendAll(std::span<const uint8_t> data) noexcept
     -> std::expected<std::monostate, std::error_code> {
   while (!data.empty()) {
 #ifndef __APPLE__
@@ -235,7 +236,7 @@ auto TCPServer::send_all(std::span<const uint8_t> data) noexcept
   return {};
 }
 
-auto TCPServer::recv_some(std::span<uint8_t> buf) noexcept
+auto TCPServer::recvSome(std::span<uint8_t> buf) noexcept
     -> std::expected<size_t, std::error_code> {
   if (buf.empty()) {
     return 0U;

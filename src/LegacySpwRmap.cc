@@ -93,55 +93,23 @@ class LegacySpwRmap::SpwPImpl {
     }
   };
 
-  /**
-   * @brief Adds a target node to the list.
-   *
-   * The SpaceWireRMAPLibrary's target node has to be initialized uisng XMLNode.
-   * This function wraps the initialization process.
-   *
-   * @param target_node The target node to add.
-   */
-  auto addTargetNode(const TargetNode &target_node) -> void {
-    if (target_node.logical_address < 32) [[unlikely]] {
-      throw std::invalid_argument("Logical address must be larger than 32.");
-    }
-
-    std::unique_ptr<XMLNode> node;
-
-    XMLLoader loader;
-    XMLNode *topnode = nullptr;
-
-    join_span(std::span{target_node.target_spacewire_address});
-
-    auto xml_string =
-        std::format(R"(
-      <RMAPTargetNode id="Null">
-        <TargetLogicalAddress>{}</TargetLogicalAddress>
-        <TargetSpaceWireAddress>{}</TargetSpaceWireAddress>
-        <ReplyAddress>{}</ReplyAddress>
-        <Key>{}</Key>
-      </RMAPTargetNode>)",
-                    target_node.logical_address,
-                    join_span(target_node.target_spacewire_address),
-                    join_span(target_node.reply_address), 2);
-
-    loader.loadFromString(&topnode, xml_string);
-    auto rmap_target_node = RMAPTargetNode::constructFromXMLNode(topnode);
-    target_nodes.insert(
-        std::make_pair(target_node.logical_address, rmap_target_node));
-  }
-
-  auto write(uint8_t logical_address, uint32_t memory_address,
+  auto write(const TargetNodeBase &target_node, uint32_t memory_address,
              const std::span<const uint8_t> data) -> void {
     if (rmap_engine->isStarted() == false) {
       start_();
     }
-    if (target_nodes.find(logical_address) == target_nodes.end()) {
-      throw std::invalid_argument("Target node not found.");
-    }
-    RMAPTargetNode *target_node = target_nodes[logical_address];
+    RMAPTargetNode rmap_target_node;
+    rmap_target_node.setTargetLogicalAddress(
+        target_node.getTargetLogicalAddress());
+    rmap_target_node.setTargetLogicalAddress(
+        target_node.getInitiatorLogicalAddress());
+    rmap_target_node.setTargetSpaceWireAddress(
+        {target_node.getTargetSpaceWireAddress().begin(),
+         target_node.getTargetSpaceWireAddress().end()});
+    rmap_target_node.setReplyAddress({target_node.getReplyAddress().begin(),
+                                      target_node.getReplyAddress().end()});
     try {
-      rmap_initiator->write(target_node, memory_address,
+      rmap_initiator->write(&rmap_target_node, memory_address,
                             const_cast<uint8_t *>(data.data()),  // NOLINT
                             data.size());
     } catch (RMAPInitiatorException &e) {
@@ -153,17 +121,23 @@ class LegacySpwRmap::SpwPImpl {
     }
   }
 
-  auto read(uint8_t logical_address, uint32_t memory_address,
+  auto read(const TargetNodeBase &target_node, uint32_t memory_address,
             const std::span<uint8_t> buffer) -> void {
     if (rmap_engine->isStarted() == false) {
       start_();
     }
-    if (target_nodes.find(logical_address) == target_nodes.end()) {
-      throw std::invalid_argument("Target node not found.");
-    }
-    auto target_node_ptr = target_nodes.at(logical_address);
+    RMAPTargetNode rmap_target_node;
+    rmap_target_node.setTargetLogicalAddress(
+        target_node.getTargetLogicalAddress());
+    rmap_target_node.setTargetLogicalAddress(
+        target_node.getInitiatorLogicalAddress());
+    rmap_target_node.setTargetSpaceWireAddress(
+        {target_node.getTargetSpaceWireAddress().begin(),
+         target_node.getTargetSpaceWireAddress().end()});
+    rmap_target_node.setReplyAddress({target_node.getReplyAddress().begin(),
+                                      target_node.getReplyAddress().end()});
     try {
-      rmap_initiator->read(target_node_ptr, memory_address, buffer.size(),
+      rmap_initiator->read(&rmap_target_node, memory_address, buffer.size(),
                            buffer.data());
     } catch (RMAPInitiatorException &e) {
       throw std::runtime_error(
@@ -181,15 +155,12 @@ LegacySpwRmap::LegacySpwRmap(std::string_view ip_address, uint32_t port)
     : impl_(new SpwPImpl(ip_address, port)) {}
 LegacySpwRmap::~LegacySpwRmap() = default;
 
-auto LegacySpwRmap::addTargetNode(const TargetNode &target_node) -> void {
-  impl_->addTargetNode(target_node);
-}
-
-auto LegacySpwRmap::write(uint8_t logical_address, uint32_t memory_address,
+auto LegacySpwRmap::write(const TargetNodeBase &target_node,
+                          uint32_t memory_address,
                           const std::span<const uint8_t> data)
     -> std::expected<std::monostate, std::error_code> {
   try {
-    impl_->write(logical_address, memory_address, data);
+    impl_->write(target_node, memory_address, data);
   } catch (const std::invalid_argument &e) {
     return std::unexpected(std::make_error_code(std::errc::invalid_argument));
   } catch (const std::runtime_error &e) {
@@ -198,11 +169,11 @@ auto LegacySpwRmap::write(uint8_t logical_address, uint32_t memory_address,
   return std::monostate{};
 }
 
-auto LegacySpwRmap::read(uint8_t logical_address, uint32_t memory_address,
-                         const std::span<uint8_t> data)
+auto LegacySpwRmap::read(const TargetNodeBase &target_node,
+                         uint32_t memory_address, const std::span<uint8_t> data)
     -> std::expected<std::monostate, std::error_code> {
   try {
-    impl_->read(logical_address, memory_address, data);
+    impl_->read(target_node, memory_address, data);
   } catch (const std::invalid_argument &e) {
     return std::unexpected(std::make_error_code(std::errc::invalid_argument));
   } catch (const std::runtime_error &e) {

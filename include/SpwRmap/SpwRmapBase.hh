@@ -29,22 +29,6 @@ class SpwRmapBase {
   auto operator=(SpwRmapBase &&) -> SpwRmapBase & = delete;
 
   /**
-   * @brief Adds a target node to the list.
-   *
-   * @param target_node The target node to add.
-   */
-  virtual auto addTargetNode(const TargetNode &target_node) -> void = 0;
-
-  /**
-   * @brief Adds a target node to the list.
-   *
-   * @param target_node The target node to add.
-   */
-  virtual auto addTargetNode(TargetNode &&target_node) -> void {
-    addTargetNode(static_cast<const TargetNode &>(std::move(target_node)));
-  }
-
-  /**
    * @brief Writes data to a target node.
    *
    * This function sends data to a specific memory address of the target node.
@@ -54,7 +38,8 @@ class SpwRmapBase {
    * @param memory_address Target memory address.
    * @param data Data to write.
    */
-  virtual auto write(uint8_t logical_address, uint32_t memory_address,
+  virtual auto write(const TargetNodeBase &target_node,
+                     uint32_t memory_address,
                      const std::span<const uint8_t> data)
       -> std::expected<std::monostate, std::error_code> = 0;
 
@@ -68,8 +53,8 @@ class SpwRmapBase {
    * @param memory_address Target memory address.
    * @param data Reference to a span where the read data will be stored.
    */
-  virtual auto read(uint8_t logical_address, uint32_t memory_address,
-                    const std::span<uint8_t> data)
+  virtual auto read(const TargetNodeBase &target_node,
+                    uint32_t memory_address, const std::span<uint8_t> data)
       -> std::expected<std::monostate, std::error_code> = 0;
 
   /**

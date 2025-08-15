@@ -1,16 +1,19 @@
 #include "SpwRmap/SpwRmap.hh"
 
 #include <algorithm>
+#include <print>
 
 namespace SpwRmap {
+
+using namespace std::chrono_literals;
 
 auto SpwRmap::initialize_() -> void {
   tcp_client_ = std::make_unique<internal::TCPClient>(ip_address_, port_);
 
-  auto res = tcp_client_->connect();
+  auto res = tcp_client_->connect(1s, 1s, 1s);
 
   int retry_count = 0;
-  while (!res.has_value() || retry_count < 3) {
+  while (!res.has_value() && retry_count < 3) {
     std::println(stderr, "Failed to connect to SpaceWire interface: {}",
                  res.error().message());
     std::println(stderr, "Retrying in 1 second...");
@@ -203,38 +206,24 @@ auto SpwRmap::ignoreNBytes(std::size_t n)
   return requested_size;
 }
 
-auto SpwRmap::addTargetNode(const TargetNode &target_node) -> void {
-  target_nodes_.push_back(target_node);
-}
-
-auto SpwRmap::addTargetNode(TargetNode &&target_node) -> void {
-  target_nodes_.emplace_back(std::move(target_node));
-}
-
-auto SpwRmap::write(uint8_t logical_address, uint32_t memory_address,
+auto SpwRmap::write(const TargetNodeBase& target_node, uint32_t memory_address,
                     const std::span<const uint8_t> data)
     -> std::expected<std::monostate, std::error_code> {
   if (!tcp_client_) {
     return std::unexpected{std::make_error_code(std::errc::not_connected)};
   }
-  auto target_node = std::ranges::find_if(
-      target_nodes_, [logical_address](const TargetNode &node) {
-        return node.logical_address == logical_address;
-      });
-  if (target_node == target_nodes_.end()) {
-    return std::unexpected{std::make_error_code(std::errc::invalid_argument)};
-  }
-  auto expected_length = target_node->target_spacewire_address.size() +
-                         (target_node->reply_address.size() + 3) / 4 * 4 + 4 +
-                         12 + 1 + data.size();
+  auto expected_length = target_node.getTargetSpaceWireAddress().size() +
+                         (target_node.getReplyAddress().size() + 3) / 4 * 4 +
+                         4 + 12 + 1 + data.size();
   if (expected_length > send_buffer_.size()) {
     return std::unexpected{std::make_error_code(std::errc::no_buffer_space)};
   }
 
   auto res = write_packet_builder_.build({
-      .targetSpaceWireAddress = target_node->target_spacewire_address,
-      .replyAddress = target_node->reply_address,
-      .targetLogicalAddress = target_node->logical_address,
+      .targetSpaceWireAddress = target_node.getTargetSpaceWireAddress(),
+      .replyAddress = target_node.getReplyAddress(),
+      .targetLogicalAddress = target_node.getTargetLogicalAddress(),
+      .initiatorLogicalAddress = initiator_logical_address_,
       .transactionID = 0x0123,
       .extendedAddress = 0x00,
       .address = memory_address,
@@ -256,7 +245,8 @@ auto SpwRmap::write(uint8_t logical_address, uint32_t memory_address,
   send_buffer_[9] = static_cast<uint8_t>((total_size >> 16) & 0xFF);
   send_buffer_[10] = static_cast<uint8_t>((total_size >> 8) & 0xFF);
   send_buffer_[11] = static_cast<uint8_t>((total_size >> 0) & 0xFF);
-  auto res_send = tcp_client_->sendAll(send_buffer_.subspan(0, total_size));
+  auto res_send =
+      tcp_client_->sendAll(send_buffer_.subspan(0, total_size + 12));
   if (!res_send.has_value()) {
     return std::unexpected{res_send.error()};
   }
@@ -277,29 +267,23 @@ auto SpwRmap::write(uint8_t logical_address, uint32_t memory_address,
   return {};
 }
 
-auto SpwRmap::read(uint8_t logical_address, uint32_t memory_address,
+auto SpwRmap::read(const TargetNodeBase& target_node, uint32_t memory_address,
                    const std::span<uint8_t> data)
     -> std::expected<std::monostate, std::error_code> {
   if (!tcp_client_) {
     return std::unexpected{std::make_error_code(std::errc::not_connected)};
   }
-  auto target_node = std::ranges::find_if(
-      target_nodes_, [logical_address](const TargetNode &node) {
-        return node.logical_address == logical_address;
-      });
-  if (target_node == target_nodes_.end()) {
-    return std::unexpected{std::make_error_code(std::errc::invalid_argument)};
-  }
-  auto expected_length = target_node->target_spacewire_address.size() +
-                         (target_node->reply_address.size() + 3) / 4 * 4 + 4 +
-                         12 + 1;
+  auto expected_length = target_node.getTargetSpaceWireAddress().size() +
+                         (target_node.getReplyAddress().size() + 3) / 4 * 4 +
+                         4 + 12 + 1;
   if (expected_length > send_buffer_.size()) {
     return std::unexpected{std::make_error_code(std::errc::no_buffer_space)};
   }
   auto res = read_packet_builder_.build({
-      .targetSpaceWireAddress = target_node->target_spacewire_address,
-      .replyAddress = target_node->reply_address,
-      .targetLogicalAddress = target_node->logical_address,
+      .targetSpaceWireAddress = target_node.getTargetSpaceWireAddress(),
+      .replyAddress = target_node.getReplyAddress(),
+      .targetLogicalAddress = target_node.getTargetLogicalAddress(),
+      .initiatorLogicalAddress = initiator_logical_address_,
       .transactionID = 0x0123,
       .extendedAddress = 0x00,
       .address = memory_address,
@@ -308,7 +292,7 @@ auto SpwRmap::read(uint8_t logical_address, uint32_t memory_address,
   if (!res.has_value()) {
     return std::unexpected{res.error()};
   }
-  auto total_size = write_packet_builder_.getTotalSize();
+  auto total_size = read_packet_builder_.getTotalSize();
   send_buffer_[0] = 0x00;
   send_buffer_[1] = 0x00;
   send_buffer_[2] = 0x00;
@@ -321,7 +305,7 @@ auto SpwRmap::read(uint8_t logical_address, uint32_t memory_address,
   send_buffer_[9] = static_cast<uint8_t>((total_size >> 16) & 0xFF);
   send_buffer_[10] = static_cast<uint8_t>((total_size >> 8) & 0xFF);
   send_buffer_[11] = static_cast<uint8_t>((total_size >> 0) & 0xFF);
-  auto res_send = tcp_client_->sendAll(send_buffer_.subspan(0, total_size));
+  auto res_send = tcp_client_->sendAll(send_buffer_.first(total_size + 12));
   if (!res_send.has_value()) {
     return std::unexpected{res_send.error()};
   }

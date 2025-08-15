@@ -186,7 +186,7 @@ struct ReadPacketConfig {
   std::span<const uint8_t> targetSpaceWireAddress;
   std::span<const uint8_t> replyAddress;
   uint8_t targetLogicalAddress{0};
-  uint8_t initiatorLogicalAddress{0};
+  uint8_t initiatorLogicalAddress{0xFE};
   uint16_t transactionID{0};
   uint8_t extendedAddress{0};
   uint32_t address{0};
@@ -199,7 +199,7 @@ struct WritePacketConfig {
   std::span<const uint8_t> targetSpaceWireAddress;
   std::span<const uint8_t> replyAddress;
   uint8_t targetLogicalAddress{0};
-  uint8_t initiatorLogicalAddress{0};
+  uint8_t initiatorLogicalAddress{0xFE};
   uint16_t transactionID{0};
   uint8_t key{0};
   uint8_t extendedAddress{0};
@@ -212,7 +212,7 @@ struct WritePacketConfig {
 
 struct ReadReplyPacketConfig {
   std::span<const uint8_t> replyAddress;
-  uint8_t initiatorLogicalAddress{0};
+  uint8_t initiatorLogicalAddress{0xFE};
   uint8_t status{0};
   uint8_t targetLogicalAddress{0};
   uint16_t transactionID{0};
@@ -222,7 +222,7 @@ struct ReadReplyPacketConfig {
 
 struct WriteReplyPacketConfig {
   std::span<const uint8_t> replyAddress;
-  uint8_t initiatorLogicalAddress{0};
+  uint8_t initiatorLogicalAddress{0xFE};
   uint8_t status{0};
   uint8_t targetLogicalAddress{0};
   uint16_t transactionID{0};

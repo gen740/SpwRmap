@@ -27,13 +27,14 @@ class LegacySpwRmap final : public SpwRmapBase {
   explicit LegacySpwRmap(std::string_view ip_address, uint32_t port);
   ~LegacySpwRmap() override;
 
-  auto addTargetNode(const TargetNode &target_node) -> void final;
-  auto write(uint8_t logical_address, uint32_t memory_address,
+  auto write(const TargetNodeBase &target_node, uint32_t memory_address,
              const std::span<const uint8_t> data)
       -> std::expected<std::monostate, std::error_code> final;
-  auto read(uint8_t logical_address, uint32_t memory_address,
+
+  auto read(const TargetNodeBase &target_node, uint32_t memory_address,
             const std::span<uint8_t> data)
       -> std::expected<std::monostate, std::error_code> final;
+
   auto emitTimeCode(uint8_t timecode)
       -> std::expected<std::monostate, std::error_code> final;
 

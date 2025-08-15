@@ -40,10 +40,10 @@ class TCPServer {
   auto setSendTimeout(std::chrono::microseconds timeout) noexcept
       -> std::expected<std::monostate, std::error_code>;
 
-  auto send_all(std::span<const uint8_t> data) noexcept
+  auto sendAll(std::span<const uint8_t> data) noexcept
       -> std::expected<std::monostate, std::error_code>;
 
-  auto recv_some(std::span<uint8_t> buf) noexcept
+  auto recvSome(std::span<uint8_t> buf) noexcept
       -> std::expected<size_t, std::error_code>;
 };
 

@@ -75,7 +75,7 @@ TEST(TcpClientServer, ServerRecieve) {
       std::vector<uint8_t> buf;
       buf.resize(16);
       while (!server_stop.load(std::memory_order_acquire)) {
-        auto n = server.recv_some(buf);
+        auto n = server.recvSome(buf);
         if (!n.has_value()) {
           FAIL() << "Server recv_some failed: " << n.error().message();
         }
@@ -157,7 +157,7 @@ TEST(TcpClientServer, ClientRecieve) {
         if (mes_size_sent + mes_size > msg.size()) {
           mes_size = msg.size() - mes_size_sent;
         }
-        auto res = server.send_all(
+        auto res = server.sendAll(
             std::span<const uint8_t>(msg.data() + mes_size_sent, mes_size));
         if (!res.has_value()) {
           FAIL() << "Server send_all failed: " << res.error().message();
