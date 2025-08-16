@@ -11,12 +11,12 @@
 
 #include "SpwRmap/PacketBuilder.hh"
 #include "SpwRmap/PacketParser.hh"
-#include "SpwRmap/SpwRmapBase.hh"
+#include "SpwRmap/SpwRmapNodeBase.hh"
 #include "SpwRmap/internal/TCPClient.hh"
 
 namespace SpwRmap {
 
-class SpwRmap : public SpwRmapBase {
+class SpwRmapTCPNode : public SpwRmapNodeBase {
  private:
   std::unique_ptr<internal::TCPClient> tcp_client_;
   std::thread worker_thread_;
@@ -36,7 +36,7 @@ class SpwRmap : public SpwRmapBase {
   uint8_t initiator_logical_address_ = 0xFE;
 
  public:
-  explicit SpwRmap(std::string_view ip_address, uint32_t port) noexcept
+  explicit SpwRmapTCPNode(std::string_view ip_address, uint32_t port) noexcept
       : ip_address_(ip_address), port_(std::to_string(port)) {}
 
  private:

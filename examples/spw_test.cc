@@ -1,4 +1,4 @@
-#include <SpwRmap/LegacySpwRmap.hh>
+#include <SpwRmap/LegacySpwRmapTCPNode.hh>
 #include <array>
 #include <chrono>
 #include <print>
@@ -20,7 +20,7 @@ auto get_spw_ti(const auto &vec) -> uint64_t {
 }
 
 auto main() -> int try {
-  SpwRmap::LegacySpwRmap spw_rmap("192.168.2.100", 10030);
+  SpwRmap::LegacySpwRmapTCPNode spw_rmap("192.168.2.100", 10030);
 
   SpwRmap::TargetNodeFixed<1, 1> target_node{0xF2, {2}, {3}};
 

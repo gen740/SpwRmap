@@ -1,11 +1,11 @@
-#include <SpwRmap/SpwRmap.hh>
+#include <SpwRmap/SpwRmapTCPNode.hh>
 #include <SpwRmap/testing/SpwServer.hh>
 #include <print>
 
 using namespace std::chrono_literals;
 
 auto main() -> int {
-  SpwRmap::SpwRmap rmap("localhost", 10032);
+  SpwRmap::SpwRmapTCPNode rmap("localhost", 10032);
 
   std::println("Connecting to SpaceWire interface at localhost:10032");
   rmap.initialize(1024, 1024);

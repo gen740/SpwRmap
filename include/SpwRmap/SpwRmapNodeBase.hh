@@ -17,16 +17,16 @@
 
 namespace SpwRmap {
 
-class SpwRmapBase {
+class SpwRmapNodeBase {
  public:
-  SpwRmapBase() = default;
-  virtual ~SpwRmapBase() = default;
+  SpwRmapNodeBase() = default;
+  virtual ~SpwRmapNodeBase() = default;
 
-  SpwRmapBase(const SpwRmapBase &) = delete;
-  auto operator=(const SpwRmapBase &) -> SpwRmapBase & = delete;
+  SpwRmapNodeBase(const SpwRmapNodeBase &) = delete;
+  auto operator=(const SpwRmapNodeBase &) -> SpwRmapNodeBase & = delete;
 
-  SpwRmapBase(SpwRmapBase &&) = delete;
-  auto operator=(SpwRmapBase &&) -> SpwRmapBase & = delete;
+  SpwRmapNodeBase(SpwRmapNodeBase &&) = delete;
+  auto operator=(SpwRmapNodeBase &&) -> SpwRmapNodeBase & = delete;
 
   /**
    * @brief Writes data to a target node.

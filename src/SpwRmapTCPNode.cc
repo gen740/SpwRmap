@@ -1,4 +1,4 @@
-#include "SpwRmap/SpwRmap.hh"
+#include "SpwRmap/SpwRmapTCPNode.hh"
 
 #include <algorithm>
 #include <print>
@@ -7,7 +7,7 @@ namespace SpwRmap {
 
 using namespace std::chrono_literals;
 
-auto SpwRmap::initialize_() -> void {
+auto SpwRmapTCPNode::initialize_() -> void {
   tcp_client_ = std::make_unique<internal::TCPClient>(ip_address_, port_);
 
   auto res = tcp_client_->connect(1s, 1s, 1s);
@@ -29,7 +29,7 @@ auto SpwRmap::initialize_() -> void {
   }
 }
 
-auto SpwRmap::initialize(size_t send_buf_size, size_t recv_buf_size) -> void {
+auto SpwRmapTCPNode::initialize(size_t send_buf_size, size_t recv_buf_size) -> void {
   initialize_();
   receive_buffer_vec_ = std::make_unique<std::vector<uint8_t>>(recv_buf_size);
   recv_buffer_ = std::span<uint8_t>(*receive_buffer_vec_);
@@ -41,7 +41,7 @@ auto SpwRmap::initialize(size_t send_buf_size, size_t recv_buf_size) -> void {
       send_buffer_.subspan(12));  // First 12 bytes are reserved for header
 }
 
-auto SpwRmap::initialize(std::span<uint8_t> send_buffer,
+auto SpwRmapTCPNode::initialize(std::span<uint8_t> send_buffer,
                          std::span<uint8_t> recv_buffer) -> void {
   initialize_();
   send_buffer_ = send_buffer;
@@ -52,7 +52,7 @@ auto SpwRmap::initialize(std::span<uint8_t> send_buffer,
       send_buffer_.subspan(12));  // First 12 bytes are reserved for header
 }
 
-auto SpwRmap::recvExact_(std::span<uint8_t> buffer)
+auto SpwRmapTCPNode::recvExact_(std::span<uint8_t> buffer)
     -> std::expected<std::size_t, std::error_code> {
   if (!tcp_client_) {
     return std::unexpected{std::make_error_code(std::errc::not_connected)};
@@ -94,7 +94,7 @@ static inline auto calculateDataLength(const std::span<const uint8_t> header,
   return data_length;
 }
 
-auto SpwRmap::recvAndParseOnePacket()
+auto SpwRmapTCPNode::recvAndParseOnePacket()
     -> std::expected<std::size_t, std::error_code> {
   if (!tcp_client_) {
     return std::unexpected{std::make_error_code(std::errc::not_connected)};
@@ -179,7 +179,7 @@ auto SpwRmap::recvAndParseOnePacket()
   return total_size;
 }
 
-auto SpwRmap::ignoreNBytes(std::size_t n)
+auto SpwRmapTCPNode::ignoreNBytes(std::size_t n)
     -> std::expected<std::size_t, std::error_code> {
   if (!tcp_client_) {
     return std::unexpected{std::make_error_code(std::errc::not_connected)};
@@ -206,7 +206,7 @@ auto SpwRmap::ignoreNBytes(std::size_t n)
   return requested_size;
 }
 
-auto SpwRmap::write(const TargetNodeBase& target_node, uint32_t memory_address,
+auto SpwRmapTCPNode::write(const TargetNodeBase& target_node, uint32_t memory_address,
                     const std::span<const uint8_t> data) noexcept
     -> std::expected<std::monostate, std::error_code> {
   if (!tcp_client_) {
@@ -267,7 +267,7 @@ auto SpwRmap::write(const TargetNodeBase& target_node, uint32_t memory_address,
   return {};
 }
 
-auto SpwRmap::read(const TargetNodeBase& target_node, uint32_t memory_address,
+auto SpwRmapTCPNode::read(const TargetNodeBase& target_node, uint32_t memory_address,
                    const std::span<uint8_t> data) noexcept
     -> std::expected<std::monostate, std::error_code> {
   if (!tcp_client_) {
@@ -332,7 +332,7 @@ auto SpwRmap::read(const TargetNodeBase& target_node, uint32_t memory_address,
   return {};
 }
 
-auto SpwRmap::emitTimeCode(uint8_t timecode) noexcept
+auto SpwRmapTCPNode::emitTimeCode(uint8_t timecode) noexcept
     -> std::expected<std::monostate, std::error_code> {
   if (!tcp_client_) {
     return std::unexpected{std::make_error_code(std::errc::not_connected)};

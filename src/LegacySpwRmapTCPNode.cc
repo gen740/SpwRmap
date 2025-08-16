@@ -4,7 +4,7 @@
  * @date 2025-03-01
  * @author gen740
  */
-#include "SpwRmap/LegacySpwRmap.hh"
+#include "SpwRmap/LegacySpwRmapTCPNode.hh"
 
 #include <RMAP.hh>
 #include <SpaceWireIFOverTCP.hh>
@@ -29,7 +29,7 @@ auto join_span(const std::span<const uint8_t> numbers) -> std::string {
   return oss.str();
 }
 
-class LegacySpwRmap::SpwPImpl {
+class LegacySpwRmapTCPNode::SpwPImpl {
  private:
   std::unique_ptr<SpaceWireIFOverTCP> spwif = nullptr;
   std::unique_ptr<RMAPEngine> rmap_engine = nullptr;
@@ -151,13 +151,14 @@ class LegacySpwRmap::SpwPImpl {
   auto emitTimeCode(uint8_t timecode) -> void { spwif->emitTimecode(timecode); }
 };
 
-LegacySpwRmap::LegacySpwRmap(std::string_view ip_address, uint32_t port)
+LegacySpwRmapTCPNode::LegacySpwRmapTCPNode(std::string_view ip_address,
+                                           uint32_t port)
     : impl_(new SpwPImpl(ip_address, port)) {}
-LegacySpwRmap::~LegacySpwRmap() = default;
+LegacySpwRmapTCPNode::~LegacySpwRmapTCPNode() = default;
 
-auto LegacySpwRmap::write(const TargetNodeBase &target_node,
-                          uint32_t memory_address,
-                          const std::span<const uint8_t> data) noexcept
+auto LegacySpwRmapTCPNode::write(const TargetNodeBase &target_node,
+                                 uint32_t memory_address,
+                                 const std::span<const uint8_t> data) noexcept
     -> std::expected<std::monostate, std::error_code> {
   try {
     impl_->write(target_node, memory_address, data);
@@ -169,9 +170,9 @@ auto LegacySpwRmap::write(const TargetNodeBase &target_node,
   return std::monostate{};
 }
 
-auto LegacySpwRmap::read(const TargetNodeBase &target_node,
-                         uint32_t memory_address,
-                         const std::span<uint8_t> data) noexcept
+auto LegacySpwRmapTCPNode::read(const TargetNodeBase &target_node,
+                                uint32_t memory_address,
+                                const std::span<uint8_t> data) noexcept
     -> std::expected<std::monostate, std::error_code> {
   try {
     impl_->read(target_node, memory_address, data);
@@ -183,7 +184,7 @@ auto LegacySpwRmap::read(const TargetNodeBase &target_node,
   return std::monostate{};
 }
 
-auto LegacySpwRmap::emitTimeCode(uint8_t timecode) noexcept
+auto LegacySpwRmapTCPNode::emitTimeCode(uint8_t timecode) noexcept
     -> std::expected<std::monostate, std::error_code> {
   try {
     impl_->emitTimeCode(timecode);

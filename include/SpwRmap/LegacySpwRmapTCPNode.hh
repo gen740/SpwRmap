@@ -13,19 +13,19 @@
 #include <span>
 #include <string_view>
 
-#include "SpwRmap/SpwRmapBase.hh"
+#include "SpwRmap/SpwRmapNodeBase.hh"
 #include "SpwRmap/TargetNode.hh"
 
 namespace SpwRmap {
 
-class LegacySpwRmap final : public SpwRmapBase {
+class LegacySpwRmapTCPNode final : public SpwRmapNodeBase {
  public:
-  LegacySpwRmap(const LegacySpwRmap &) = delete;
-  LegacySpwRmap(LegacySpwRmap &&) = delete;
-  auto operator=(const LegacySpwRmap &) -> LegacySpwRmap & = delete;
-  auto operator=(LegacySpwRmap &&) -> LegacySpwRmap & = delete;
-  explicit LegacySpwRmap(std::string_view ip_address, uint32_t port);
-  ~LegacySpwRmap() override;
+  LegacySpwRmapTCPNode(const LegacySpwRmapTCPNode &) = delete;
+  LegacySpwRmapTCPNode(LegacySpwRmapTCPNode &&) = delete;
+  auto operator=(const LegacySpwRmapTCPNode &) -> LegacySpwRmapTCPNode & = delete;
+  auto operator=(LegacySpwRmapTCPNode &&) -> LegacySpwRmapTCPNode & = delete;
+  explicit LegacySpwRmapTCPNode(std::string_view ip_address, uint32_t port);
+  ~LegacySpwRmapTCPNode() override;
 
   auto write(const TargetNodeBase &target_node, uint32_t memory_address,
              const std::span<const uint8_t> data) noexcept
