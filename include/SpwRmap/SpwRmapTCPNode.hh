@@ -39,14 +39,13 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
   explicit SpwRmapTCPNode(std::string_view ip_address, uint32_t port) noexcept
       : ip_address_(ip_address), port_(std::to_string(port)) {}
 
- private:
-  auto initialize_() -> void;
-
  public:
-  auto initialize(size_t send_buf_size, size_t recv_buf_size) -> void;
+  auto connect() -> void;
 
-  auto initialize(std::span<uint8_t> send_buffer,
-                  std::span<uint8_t> recv_buffer) -> void;
+  auto setBuffer(size_t send_buf_size, size_t recv_buf_size) -> void;
+
+  auto setBuffer(std::span<uint8_t> send_buffer, std::span<uint8_t> recv_buffer)
+      -> void;
 
   auto setInitiatorLogicalAddress(uint8_t address) -> void {
     initiator_logical_address_ = address;

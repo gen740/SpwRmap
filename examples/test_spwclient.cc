@@ -8,7 +8,7 @@ auto main() -> int {
   SpwRmap::SpwRmapTCPNode rmap("localhost", 10032);
 
   std::println("Connecting to SpaceWire interface at localhost:10032");
-  rmap.initialize(1024, 1024);
+  rmap.setBuffer(1024, 1024);
   std::println("Connected successfully");
 
   SpwRmap::TargetNodeDynamic target_node{0xFE, {0x00, 0x01, 0x02, 0x03}, {}};

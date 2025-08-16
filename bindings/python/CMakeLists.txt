@@ -6,8 +6,7 @@ find_package(
 
 pybind11_add_module(pyspw_rmap MODULE src/pyspw_rmap.cc)
 target_compile_features(pyspw_rmap PRIVATE cxx_std_23)
-
-# target_link_libraries(pyspw_rmap PRIVATE yourproj)
+target_link_libraries(pyspw_rmap PRIVATE ${PROJECT_NAME})
 
 set(PYSPW_RMAP_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/pyspw_rmap")
 
@@ -21,7 +20,7 @@ add_custom_command(
   TARGET pyspw_rmap
   POST_BUILD
   COMMAND
-    ${CMAKE_COMMAND} -E copy_if_different
+    ${CMAKE_COMMAND} -E copy
     "${CMAKE_CURRENT_SOURCE_DIR}/pyspw_rmap/__init__.py"
     "${PYSPW_RMAP_BUILD_DIR}")
 
