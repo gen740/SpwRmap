@@ -14,6 +14,10 @@ if(SPWRMAP_BUILD_TESTS)
   add_subdirectory(tests)
 endif()
 
+if(SPWRMAP_BUILD_PYTHON_BINDINGS)
+  add_subdirectory(bindings/python)
+endif()
+
 include(CMakePackageConfigHelpers)
 
 install(

@@ -1,0 +1,19 @@
+[build-system]
+requires = [
+  "scikit-build-core",
+  "pybind11",
+  "pybind11-stubgen",
+]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "pyspw_rmap"
+version = "0.0.1"
+description = "SpwRmap with python bindings"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+
+[tool.scikit-build]
+cmake.source-dir = "."
+cmake.args = ["-DSPWRMAP_BUILD_PYTHON_BINDINGS=ON"]
+wheel.packages = ["./bindings/python/pyspw_rmap"]

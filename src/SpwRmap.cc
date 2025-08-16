@@ -207,7 +207,7 @@ auto SpwRmap::ignoreNBytes(std::size_t n)
 }
 
 auto SpwRmap::write(const TargetNodeBase& target_node, uint32_t memory_address,
-                    const std::span<const uint8_t> data)
+                    const std::span<const uint8_t> data) noexcept
     -> std::expected<std::monostate, std::error_code> {
   if (!tcp_client_) {
     return std::unexpected{std::make_error_code(std::errc::not_connected)};
@@ -268,7 +268,7 @@ auto SpwRmap::write(const TargetNodeBase& target_node, uint32_t memory_address,
 }
 
 auto SpwRmap::read(const TargetNodeBase& target_node, uint32_t memory_address,
-                   const std::span<uint8_t> data)
+                   const std::span<uint8_t> data) noexcept
     -> std::expected<std::monostate, std::error_code> {
   if (!tcp_client_) {
     return std::unexpected{std::make_error_code(std::errc::not_connected)};
@@ -332,7 +332,7 @@ auto SpwRmap::read(const TargetNodeBase& target_node, uint32_t memory_address,
   return {};
 }
 
-auto SpwRmap::emitTimeCode(uint8_t timecode)
+auto SpwRmap::emitTimeCode(uint8_t timecode) noexcept
     -> std::expected<std::monostate, std::error_code> {
   if (!tcp_client_) {
     return std::unexpected{std::make_error_code(std::errc::not_connected)};

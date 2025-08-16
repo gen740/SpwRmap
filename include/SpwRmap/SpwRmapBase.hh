@@ -38,9 +38,8 @@ class SpwRmapBase {
    * @param memory_address Target memory address.
    * @param data Data to write.
    */
-  virtual auto write(const TargetNodeBase &target_node,
-                     uint32_t memory_address,
-                     const std::span<const uint8_t> data)
+  virtual auto write(const TargetNodeBase &target_node, uint32_t memory_address,
+                     const std::span<const uint8_t> data) noexcept
       -> std::expected<std::monostate, std::error_code> = 0;
 
   /**
@@ -53,8 +52,8 @@ class SpwRmapBase {
    * @param memory_address Target memory address.
    * @param data Reference to a span where the read data will be stored.
    */
-  virtual auto read(const TargetNodeBase &target_node,
-                    uint32_t memory_address, const std::span<uint8_t> data)
+  virtual auto read(const TargetNodeBase &target_node, uint32_t memory_address,
+                    const std::span<uint8_t> data) noexcept
       -> std::expected<std::monostate, std::error_code> = 0;
 
   /**
@@ -64,7 +63,7 @@ class SpwRmapBase {
    *
    * @param timecode Time code to emit.
    */
-  virtual auto emitTimeCode(uint8_t timecode)
+  virtual auto emitTimeCode(uint8_t timecode) noexcept
       -> std::expected<std::monostate, std::error_code> = 0;
 };
 

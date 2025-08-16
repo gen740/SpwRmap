@@ -63,14 +63,14 @@ class SpwRmap : public SpwRmapBase {
 
  public:
   auto write(const TargetNodeBase& target_node, uint32_t memory_address,
-             const std::span<const uint8_t> data)
+             const std::span<const uint8_t> data) noexcept
       -> std::expected<std::monostate, std::error_code> override;
 
   auto read(const TargetNodeBase& target_node, uint32_t memory_address,
-            const std::span<uint8_t> data)
+            const std::span<uint8_t> data) noexcept
       -> std::expected<std::monostate, std::error_code> override;
 
-  auto emitTimeCode(uint8_t timecode)
+  auto emitTimeCode(uint8_t timecode) noexcept
       -> std::expected<std::monostate, std::error_code> override;
 };
 

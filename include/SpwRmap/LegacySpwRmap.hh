@@ -28,14 +28,14 @@ class LegacySpwRmap final : public SpwRmapBase {
   ~LegacySpwRmap() override;
 
   auto write(const TargetNodeBase &target_node, uint32_t memory_address,
-             const std::span<const uint8_t> data)
+             const std::span<const uint8_t> data) noexcept
       -> std::expected<std::monostate, std::error_code> final;
 
   auto read(const TargetNodeBase &target_node, uint32_t memory_address,
-            const std::span<uint8_t> data)
+            const std::span<uint8_t> data) noexcept
       -> std::expected<std::monostate, std::error_code> final;
 
-  auto emitTimeCode(uint8_t timecode)
+  auto emitTimeCode(uint8_t timecode) noexcept
       -> std::expected<std::monostate, std::error_code> final;
 
  private:

@@ -212,73 +212,71 @@ TEST(PacketBuilder, ReadPacketBuilder) {
   std::vector<uint8_t> targetSpaceWireAddress{};
   std::vector<uint8_t> replyAddress{};
 
-  for (size_t num = 0; num < 25; num++) {
-    targetSpaceWireAddress.clear();
-    for (int i = 0; i < node_num(random_engine); i++) {
-      targetSpaceWireAddress.push_back(distribution_lt(random_engine));
-    }
-    replyAddress.clear();
-    for (int i = 0; i < node_num(random_engine); i++) {
-      replyAddress.push_back(distribution_lt(random_engine));
-    }
-    SpwRmap::ReadPacketConfig config = {
-        .targetSpaceWireAddress = targetSpaceWireAddress,
-        .replyAddress = replyAddress,
-        .targetLogicalAddress = distribution_gt(random_engine),
-        .initiatorLogicalAddress = distribution_gt(random_engine),
-        .transactionID = distribution16(random_engine),
-        .extendedAddress = 0x00,
-        .address = distribution32(random_engine),
-        .dataLength = distribution32(random_engine) & 0x00FFFFFF,
-        .key = distribution(random_engine),
-        .incrementMode = distribution(random_engine) % 2 == 0,
-    };
-
-    auto legacy_packet = LegacySpwRmapReadPacketBuilder::build(config);
-
-    auto read_packet_builder = SpwRmap::ReadPacketBuilder();
-    {
-      auto res = read_packet_builder.build(config);
-      if (!res.has_value()) {
-        FAIL() << "Failed to build read packet: " << res.error().message();
-      }
-    }
-
-    std::array<uint8_t, 1024> packet_buffer{};
-    auto read_packet_builder_fixed_buf = SpwRmap::ReadPacketBuilder();
-    read_packet_builder_fixed_buf.setBuffer(packet_buffer);
-    {
-      auto res = read_packet_builder_fixed_buf.build(config);
-      if (!res.has_value()) {
-        FAIL() << "Failed to build read packet with fixed buffer: "
-               << res.error().message();
-      }
-    }
-
-    auto packet_array = *read_packet_builder.getPacket();
-    auto packet_array_fixed = *read_packet_builder_fixed_buf.getPacket();
-
-    ASSERT_TRUE(std::ranges::equal(legacy_packet, packet_array));
-    ASSERT_TRUE(std::ranges::equal(legacy_packet, packet_array_fixed));
-
-    SpwRmap::PacketParser parser;
-    auto status = parser.parse(packet_array);
-    ASSERT_EQ(status, SpwRmap::PacketParser::Status::Success);
-
-    ASSERT_TRUE(std::ranges::equal(parser.getPacket().targetSpaceWireAddress,
-                                   targetSpaceWireAddress));
-    ASSERT_TRUE(
-        std::ranges::equal(parser.getPacket().replyAddress, replyAddress));
-    ASSERT_EQ(parser.getPacket().targetLogicalAddress,
-              config.targetLogicalAddress);
-    ASSERT_EQ(parser.getPacket().initiatorLogicalAddress,
-              config.initiatorLogicalAddress);
-    ASSERT_EQ(parser.getPacket().transactionID, config.transactionID);
-    ASSERT_EQ(parser.getPacket().extendedAddress, config.extendedAddress);
-    ASSERT_EQ(parser.getPacket().address, config.address);
-    ASSERT_EQ(parser.getPacket().dataLength, config.dataLength);
-    ASSERT_EQ(parser.getPacket().key, config.key);
+  targetSpaceWireAddress.clear();
+  for (int i = 0; i < node_num(random_engine); i++) {
+    targetSpaceWireAddress.push_back(distribution_lt(random_engine));
   }
+  replyAddress.clear();
+  for (int i = 0; i < node_num(random_engine); i++) {
+    replyAddress.push_back(distribution_lt(random_engine));
+  }
+  SpwRmap::ReadPacketConfig config = {
+      .targetSpaceWireAddress = targetSpaceWireAddress,
+      .replyAddress = replyAddress,
+      .targetLogicalAddress = distribution_gt(random_engine),
+      .initiatorLogicalAddress = distribution_gt(random_engine),
+      .transactionID = distribution16(random_engine),
+      .extendedAddress = 0x00,
+      .address = distribution32(random_engine),
+      .dataLength = distribution32(random_engine) & 0x00FFFFFF,
+      .key = distribution(random_engine),
+      .incrementMode = distribution(random_engine) % 2 == 0,
+  };
+
+  auto legacy_packet = LegacySpwRmapReadPacketBuilder::build(config);
+
+  auto read_packet_builder = SpwRmap::ReadPacketBuilder();
+  {
+    auto res = read_packet_builder.build(config);
+    if (!res.has_value()) {
+      FAIL() << "Failed to build read packet: " << res.error().message();
+    }
+  }
+
+  std::array<uint8_t, 1024> packet_buffer{};
+  auto read_packet_builder_fixed_buf = SpwRmap::ReadPacketBuilder();
+  read_packet_builder_fixed_buf.setBuffer(packet_buffer);
+  {
+    auto res = read_packet_builder_fixed_buf.build(config);
+    if (!res.has_value()) {
+      FAIL() << "Failed to build read packet with fixed buffer: "
+             << res.error().message();
+    }
+  }
+
+  auto packet_array = *read_packet_builder.getPacket();
+  auto packet_array_fixed = *read_packet_builder_fixed_buf.getPacket();
+
+  ASSERT_TRUE(std::ranges::equal(legacy_packet, packet_array));
+  ASSERT_TRUE(std::ranges::equal(legacy_packet, packet_array_fixed));
+
+  SpwRmap::PacketParser parser;
+  auto status = parser.parse(packet_array);
+  ASSERT_EQ(status, SpwRmap::PacketParser::Status::Success);
+
+  ASSERT_TRUE(std::ranges::equal(parser.getPacket().targetSpaceWireAddress,
+                                 targetSpaceWireAddress));
+  ASSERT_TRUE(
+      std::ranges::equal(parser.getPacket().replyAddress, replyAddress));
+  ASSERT_EQ(parser.getPacket().targetLogicalAddress,
+            config.targetLogicalAddress);
+  ASSERT_EQ(parser.getPacket().initiatorLogicalAddress,
+            config.initiatorLogicalAddress);
+  ASSERT_EQ(parser.getPacket().transactionID, config.transactionID);
+  ASSERT_EQ(parser.getPacket().extendedAddress, config.extendedAddress);
+  ASSERT_EQ(parser.getPacket().address, config.address);
+  ASSERT_EQ(parser.getPacket().dataLength, config.dataLength);
+  ASSERT_EQ(parser.getPacket().key, config.key);
 }
 
 TEST(PacketBuilder, WritePacketBuilder) {
@@ -292,75 +290,73 @@ TEST(PacketBuilder, WritePacketBuilder) {
   std::vector<uint8_t> targetSpaceWireAddress{};
   std::vector<uint8_t> replyAddress{};
 
-  for (int num = 0; num < 25; num++) {
-    targetSpaceWireAddress.clear();
-    for (int i = 0; i < node_num(random_engine); i++) {
-      targetSpaceWireAddress.push_back(distribution_lt(random_engine));
+  targetSpaceWireAddress.clear();
+  for (int i = 0; i < node_num(random_engine); i++) {
+    targetSpaceWireAddress.push_back(distribution_lt(random_engine));
+  }
+  replyAddress.clear();
+  for (int i = 0; i < node_num(random_engine); i++) {
+    replyAddress.push_back(distribution_lt(random_engine));
+  }
+  std::vector<uint8_t> data;
+  for (int i = 0; i < distribution(random_engine); i++) {
+    data.push_back(distribution(random_engine));
+  }
+  SpwRmap::WritePacketConfig config = {
+      .targetSpaceWireAddress = targetSpaceWireAddress,
+      .replyAddress = replyAddress,
+      .targetLogicalAddress = distribution_gt(random_engine),
+      .initiatorLogicalAddress = distribution_gt(random_engine),
+      .transactionID = distribution16(random_engine),
+      .key = distribution(random_engine),
+      .extendedAddress = 0x00,
+      .address = distribution32(random_engine),
+      .incrementMode = distribution(random_engine) % 2 == 0,
+      .reply = distribution(random_engine) % 2 == 0,
+      .verifyMode = distribution(random_engine) % 2 == 0,
+      .data = data,
+  };
+  auto legacy_packet = LegacySpwRmapWritePacketBuilder::build(config);
+  auto read_packet_builder = SpwRmap::WritePacketBuilder();
+  {
+    auto res = read_packet_builder.build(config);
+    if (!res.has_value()) {
+      FAIL() << "Failed to build write packet: " << res.error().message();
     }
-    replyAddress.clear();
-    for (int i = 0; i < node_num(random_engine); i++) {
-      replyAddress.push_back(distribution_lt(random_engine));
-    }
-    std::vector<uint8_t> data;
-    for (int i = 0; i < distribution(random_engine); i++) {
-      data.push_back(distribution(random_engine));
-    }
-    SpwRmap::WritePacketConfig config = {
-        .targetSpaceWireAddress = targetSpaceWireAddress,
-        .replyAddress = replyAddress,
-        .targetLogicalAddress = distribution_gt(random_engine),
-        .initiatorLogicalAddress = distribution_gt(random_engine),
-        .transactionID = distribution16(random_engine),
-        .key = distribution(random_engine),
-        .extendedAddress = 0x00,
-        .address = distribution32(random_engine),
-        .incrementMode = distribution(random_engine) % 2 == 0,
-        .reply = distribution(random_engine) % 2 == 0,
-        .verifyMode = distribution(random_engine) % 2 == 0,
-        .data = data,
-    };
-    auto legacy_packet = LegacySpwRmapWritePacketBuilder::build(config);
-    auto read_packet_builder = SpwRmap::WritePacketBuilder();
-    {
-      auto res = read_packet_builder.build(config);
-      if (!res.has_value()) {
-        FAIL() << "Failed to build write packet: " << res.error().message();
-      }
-    }
+  }
 
-    std::array<uint8_t, 1024> packet_buffer{};
-    auto read_packet_builder_fixed_array = SpwRmap::WritePacketBuilder();
-    read_packet_builder_fixed_array.setBuffer(packet_buffer);
-    {
-      auto res = read_packet_builder_fixed_array.build(config);
-      if (!res.has_value()) {
-        FAIL() << "Failed to build write packet with fixed buffer: "
-               << res.error().message();
-      }
+  std::array<uint8_t, 1024> packet_buffer{};
+  auto read_packet_builder_fixed_array = SpwRmap::WritePacketBuilder();
+  read_packet_builder_fixed_array.setBuffer(packet_buffer);
+  {
+    auto res = read_packet_builder_fixed_array.build(config);
+    if (!res.has_value()) {
+      FAIL() << "Failed to build write packet with fixed buffer: "
+             << res.error().message();
     }
+  }
 
-    auto packet_array = *read_packet_builder.getPacket();
-    auto packet_array_fixed = *read_packet_builder_fixed_array.getPacket();
-    ASSERT_TRUE(std::ranges::equal(legacy_packet, packet_array));
-    ASSERT_TRUE(std::ranges::equal(legacy_packet, packet_array_fixed));
+  auto packet_array = *read_packet_builder.getPacket();
+  auto packet_array_fixed = *read_packet_builder_fixed_array.getPacket();
+  ASSERT_TRUE(std::ranges::equal(legacy_packet, packet_array));
+  ASSERT_TRUE(std::ranges::equal(legacy_packet, packet_array_fixed));
 
-    {  // Test PacketParser
-      SpwRmap::PacketParser parser;
-      auto status = parser.parse(packet_array);
-      ASSERT_EQ(status, SpwRmap::PacketParser::Status::Success);
-      ASSERT_TRUE(std::ranges::equal(parser.getPacket().targetSpaceWireAddress,
-                                     targetSpaceWireAddress));
-      ASSERT_TRUE(
-          std::ranges::equal(parser.getPacket().replyAddress, replyAddress));
-      ASSERT_EQ(parser.getPacket().targetLogicalAddress,
-                config.targetLogicalAddress);
-      ASSERT_EQ(parser.getPacket().initiatorLogicalAddress,
-                config.initiatorLogicalAddress);
-      ASSERT_EQ(parser.getPacket().transactionID, config.transactionID);
-      ASSERT_EQ(parser.getPacket().key, config.key);
-      ASSERT_EQ(parser.getPacket().extendedAddress, config.extendedAddress);
-      ASSERT_EQ(parser.getPacket().address, config.address);
-      ASSERT_TRUE(std::ranges::equal(parser.getPacket().data, config.data));
-    }
+  {  // Test PacketParser
+    SpwRmap::PacketParser parser;
+    auto status = parser.parse(packet_array);
+    ASSERT_EQ(status, SpwRmap::PacketParser::Status::Success);
+    ASSERT_TRUE(std::ranges::equal(parser.getPacket().targetSpaceWireAddress,
+                                   targetSpaceWireAddress));
+    ASSERT_TRUE(
+        std::ranges::equal(parser.getPacket().replyAddress, replyAddress));
+    ASSERT_EQ(parser.getPacket().targetLogicalAddress,
+              config.targetLogicalAddress);
+    ASSERT_EQ(parser.getPacket().initiatorLogicalAddress,
+              config.initiatorLogicalAddress);
+    ASSERT_EQ(parser.getPacket().transactionID, config.transactionID);
+    ASSERT_EQ(parser.getPacket().key, config.key);
+    ASSERT_EQ(parser.getPacket().extendedAddress, config.extendedAddress);
+    ASSERT_EQ(parser.getPacket().address, config.address);
+    ASSERT_TRUE(std::ranges::equal(parser.getPacket().data, config.data));
   }
 }

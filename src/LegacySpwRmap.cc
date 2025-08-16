@@ -157,7 +157,7 @@ LegacySpwRmap::~LegacySpwRmap() = default;
 
 auto LegacySpwRmap::write(const TargetNodeBase &target_node,
                           uint32_t memory_address,
-                          const std::span<const uint8_t> data)
+                          const std::span<const uint8_t> data) noexcept
     -> std::expected<std::monostate, std::error_code> {
   try {
     impl_->write(target_node, memory_address, data);
@@ -170,7 +170,8 @@ auto LegacySpwRmap::write(const TargetNodeBase &target_node,
 }
 
 auto LegacySpwRmap::read(const TargetNodeBase &target_node,
-                         uint32_t memory_address, const std::span<uint8_t> data)
+                         uint32_t memory_address,
+                         const std::span<uint8_t> data) noexcept
     -> std::expected<std::monostate, std::error_code> {
   try {
     impl_->read(target_node, memory_address, data);
@@ -182,7 +183,7 @@ auto LegacySpwRmap::read(const TargetNodeBase &target_node,
   return std::monostate{};
 }
 
-auto LegacySpwRmap::emitTimeCode(uint8_t timecode)
+auto LegacySpwRmap::emitTimeCode(uint8_t timecode) noexcept
     -> std::expected<std::monostate, std::error_code> {
   try {
     impl_->emitTimeCode(timecode);
