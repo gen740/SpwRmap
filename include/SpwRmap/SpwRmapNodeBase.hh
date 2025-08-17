@@ -9,6 +9,7 @@
 
 #include <cstdint>
 #include <expected>
+#include <future>
 #include <span>
 #include <system_error>
 #include <variant>
@@ -55,6 +56,52 @@ class SpwRmapNodeBase {
   virtual auto read(const TargetNodeBase &target_node, uint32_t memory_address,
                     const std::span<uint8_t> data) noexcept
       -> std::expected<std::monostate, std::error_code> = 0;
+
+  /**
+   * @brief Writes data to a target node.
+   *
+   * This function sends data to a specific memory address of the target node.
+   * The write operation is performed synchronously.
+   *
+   * @param logical_address Logical address of the target node.
+   * @param memory_address Target memory address.
+   * @param data Data to write.
+   */
+  virtual auto writeAsync(const TargetNodeBase &target_node,
+                          uint32_t memory_address,
+                          const std::span<const uint8_t> data) noexcept
+      -> std::future<std::expected<std::monostate, std::error_code>> {
+    std::ignore = target_node;
+    std::ignore = memory_address;
+    std::ignore = data;
+    std::promise<std::expected<std::monostate, std::error_code>> promise;
+    promise.set_value(
+        std::unexpected(std::make_error_code(std::errc::not_supported)));
+    return promise.get_future();
+  }
+
+  /**
+   * @brief Reads data from a target node.
+   *
+   * This function retrieves data from a specific memory address of the target
+   * node. The read operation is performed synchronously.
+   *
+   * @param logical_address Logical address of the target node.
+   * @param memory_address Target memory address.
+   * @param data Reference to a span where the read data will be stored.
+   */
+  virtual auto readAsync(const TargetNodeBase &target_node,
+                         uint32_t memory_address,
+                         const std::span<uint8_t> data) noexcept
+      -> std::future<std::expected<std::monostate, std::error_code>> {
+    std::ignore = target_node;
+    std::ignore = memory_address;
+    std::ignore = data;
+    std::promise<std::expected<std::monostate, std::error_code>> promise;
+    promise.set_value(
+        std::unexpected(std::make_error_code(std::errc::not_supported)));
+    return promise.get_future();
+  }
 
   /**
    * @brief Emits a time code.

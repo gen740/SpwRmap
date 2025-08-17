@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <print>
+#include <utility>
 
 #include "SpwRmap/CRC.hh"
 #include "SpwRmap/RMAPPacketType.hh"

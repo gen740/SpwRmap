@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstdint>
 #include <expected>
+#include <memory>
 #include <print>
 #include <span>
 #include <system_error>

@@ -29,7 +29,9 @@ auto connect_with_timeout_(const int fd, const sockaddr* addr,
   const auto ms64 =
       std::chrono::duration_cast<std::chrono::milliseconds>(timeout).count();
   const int ms =
-      ms64 > static_cast<long long>(INT_MAX) ? INT_MAX : static_cast<int>(ms64);
+      ms64 > static_cast<long long>(std::numeric_limits<int32_t>::max())
+          ? std::numeric_limits<int32_t>::max()
+          : static_cast<int>(ms64);
 
   const int oldfl = ::fcntl(fd, F_GETFL);
   if (oldfl < 0) {

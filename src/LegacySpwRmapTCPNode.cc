@@ -11,6 +11,7 @@
 #include <XMLUtilities/XMLLoader.hpp>
 #include <XMLUtilities/XMLNode.hpp>
 #include <chrono>
+#include <iostream>
 #include <memory>
 #include <span>
 #include <thread>
@@ -84,10 +85,10 @@ class LegacySpwRmapTCPNode::SpwPImpl {
       try {
         rmap_engine->stop();
       } catch (const std::exception &e) {
-        std::println(stderr, "Failed to stop RMAP engine: {}", e.what());
+        std::println(std::cerr, "Failed to stop RMAP engine: {}", e.what());
         std::terminate();
       } catch (CxxUtilities::Exception &e) {
-        std::println(stderr, "Failed to stop RMAP engine: {}", e.toString());
+        std::println(std::cerr, "Failed to stop RMAP engine: {}", e.toString());
         std::terminate();
       }
     }

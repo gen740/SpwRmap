@@ -1,9 +1,11 @@
 #include <SpwRmap/LegacySpwRmapTCPNode.hh>
 #include <array>
 #include <chrono>
+#include <format>
 #include <print>
 #include <span>
 #include <thread>
+#include <vector>
 
 auto get_spw_ti(const auto &vec) -> uint64_t {
   if (vec.size() != 8) {
@@ -34,7 +36,6 @@ auto main() -> int try {
     }
   }
 
-  std::print("{}", buffer);
 
   for (int i = 0; i < 30000; i++) {
     {
@@ -44,7 +45,6 @@ auto main() -> int try {
         return 1;
       }
     }
-    std::println("{}\tdata = {}", get_spw_ti(buffer), buffer);
     {
       auto res = spw_rmap.read(target_node, 0x44a40008, time_code_buffer);
       if (!res.has_value()) {
@@ -52,7 +52,6 @@ auto main() -> int try {
         return 1;
       }
     }
-    std::println("{}", time_code_buffer);
     std::this_thread::sleep_for(std::chrono::milliseconds(1000 / 64));
   }
 

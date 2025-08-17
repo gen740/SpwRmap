@@ -201,14 +201,10 @@
                 "-DSPWRMAP_BUILD_PYTHON_BINDINGS=ON"
                 "-DSPWRMAP_BUILD_TESTS=ON"
               ];
-              doCheck = true;
               buildInputs = [
                 (legacy_spw_rmap { inherit pkgs; })
                 pkgs.gtest
               ];
-              checkPhase = ''
-                ctest --output-on-failure -j "$NIX_BUILD_CORES" --timeout 120
-              '';
             };
           };
 

@@ -9,8 +9,10 @@
 #include <chrono>
 #include <cstdint>
 #include <cstring>
+#include <print>
 #include <random>
 #include <span>
+#include <string>
 #include <thread>
 #include <vector>
 
