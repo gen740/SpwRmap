@@ -16,7 +16,6 @@ if(SPWRMAP_DOWNLOAD_DEPENDENCIES)
     [=[
 #!/usr/bin/env bash
 set -euo pipefail
-
 find . -name '*.hh' -print0 | while IFS= read -r -d "" file; do
   perl -0777 -i -pe '
     s{
