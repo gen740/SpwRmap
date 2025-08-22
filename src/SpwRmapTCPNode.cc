@@ -10,26 +10,14 @@ using namespace std::chrono_literals;
 auto SpwRmapTCPNode::connect(std::chrono::microseconds recv_timeout,
                              std::chrono::microseconds send_timeout,
                              std::chrono::microseconds connect_timeout)
-    -> void {
+    -> std::expected<std::monostate, std::error_code> {
   tcp_client_ = std::make_unique<internal::TCPClient>(ip_address_, port_);
-
   auto res = tcp_client_->connect(recv_timeout, send_timeout, connect_timeout);
-
-  int retry_count = 0;
-  while (!res.has_value() && retry_count < 3) {
-    std::println(stderr, "Failed to connect to SpaceWire interface: {}",
-                 res.error().message());
-    std::println(stderr, "Retrying in 1 second...");
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    retry_count++;
-    res = tcp_client_->reconnect();
-  }
   if (!res.has_value()) {
-    std::println(stderr,
-                 "Failed to connect to SpaceWire interface after 3 retries: {}",
-                 res.error().message());
-    std::terminate();
+    tcp_client_->disconnect();
+    return std::unexpected{res.error()};
   }
+  return {};
 }
 
 auto SpwRmapTCPNode::setBuffer(size_t send_buf_size, size_t recv_buf_size)

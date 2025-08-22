@@ -43,8 +43,8 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
   auto connect(
       std::chrono::microseconds recv_timeout = std::chrono::milliseconds(100),
       std::chrono::microseconds send_timeout = std::chrono::milliseconds(100),
-      std::chrono::microseconds connect_timeout =
-          std::chrono::milliseconds(100)) -> void;
+      std::chrono::microseconds connect_timeout = std::chrono::milliseconds(
+          100)) -> std::expected<std::monostate, std::error_code>;
 
   auto setBuffer(size_t send_buf_size, size_t recv_buf_size) -> void;
 
