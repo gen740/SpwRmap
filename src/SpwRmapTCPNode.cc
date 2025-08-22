@@ -115,7 +115,9 @@ auto SpwRmapTCPNode::recvAndParseOnePacket()
     if (*dataLength == 0) {
       return std::unexpected{std::make_error_code(std::errc::bad_message)};
     }
-
+    if (*dataLength > recv_buffer.size()) {
+      return std::unexpected{std::make_error_code(std::errc::no_buffer_space)};
+    }
     switch (header.at(0)) {
       case 0x00: {
         auto res = recvExact_(recv_buffer.first(*dataLength));
@@ -283,6 +285,9 @@ auto SpwRmapTCPNode::read(const TargetNodeBase& target_node,
   });
   if (!res.has_value()) {
     return std::unexpected{res.error()};
+  }
+  if (send_buffer_.size() < read_packet_builder_.getTotalSize() + 12) {
+    return std::unexpected{std::make_error_code(std::errc::no_buffer_space)};
   }
   auto total_size = read_packet_builder_.getTotalSize();
   send_buffer_[0] = 0x00;
