@@ -40,7 +40,11 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
       : ip_address_(ip_address), port_(std::to_string(port)) {}
 
  public:
-  auto connect() -> void;
+  auto connect(
+      std::chrono::microseconds recv_timeout = std::chrono::milliseconds(100),
+      std::chrono::microseconds send_timeout = std::chrono::milliseconds(100),
+      std::chrono::microseconds connect_timeout =
+          std::chrono::milliseconds(100)) -> void;
 
   auto setBuffer(size_t send_buf_size, size_t recv_buf_size) -> void;
 

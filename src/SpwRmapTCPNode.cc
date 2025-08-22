@@ -7,10 +7,13 @@ namespace SpwRmap {
 
 using namespace std::chrono_literals;
 
-auto SpwRmapTCPNode::connect() -> void {
+auto SpwRmapTCPNode::connect(std::chrono::microseconds recv_timeout,
+                             std::chrono::microseconds send_timeout,
+                             std::chrono::microseconds connect_timeout)
+    -> void {
   tcp_client_ = std::make_unique<internal::TCPClient>(ip_address_, port_);
 
-  auto res = tcp_client_->connect(1s, 1s, 1s);
+  auto res = tcp_client_->connect(recv_timeout, send_timeout, connect_timeout);
 
   int retry_count = 0;
   while (!res.has_value() && retry_count < 3) {
@@ -42,7 +45,7 @@ auto SpwRmapTCPNode::setBuffer(size_t send_buf_size, size_t recv_buf_size)
 }
 
 auto SpwRmapTCPNode::setBuffer(std::span<uint8_t> send_buffer,
-                                std::span<uint8_t> recv_buffer) -> void {
+                               std::span<uint8_t> recv_buffer) -> void {
   send_buffer_ = send_buffer;
   recv_buffer_ = recv_buffer;
   read_packet_builder_.setBuffer(
