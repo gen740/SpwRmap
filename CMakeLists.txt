@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.27)
+cmake_minimum_required(VERSION 3.15)
 project(SpwRmap LANGUAGES CXX)
 
 option(SPWRMAP_BUILD_EXAMPLES "Build examples" OFF)
@@ -35,7 +35,6 @@ find . -name '*.hh' -print0 | while IFS= read -r -d "" file; do
 done
 ]=])
 
-  # 実行属性
   file(
     CHMOD
     "${_patch_sh}"
