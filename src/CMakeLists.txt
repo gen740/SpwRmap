@@ -1,10 +1,6 @@
-find_package(XercesC REQUIRED)
-
 target_include_directories(
   ${PROJECT_NAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../include>
                          $<INSTALL_INTERFACE:include>)
-
-target_link_libraries(${PROJECT_NAME} PUBLIC $<LINK_ONLY:XercesC::XercesC>)
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/*.cc)
 

@@ -1,7 +1,6 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include <SpwRmap/LegacySpwRmapTCPNode.hh>
 #include <SpwRmap/SpwRmapNodeBase.hh>
 #include <SpwRmap/SpwRmapTCPNode.hh>
 #include <SpwRmap/TargetNode.hh>
@@ -116,35 +115,6 @@ PYBIND11_MODULE(_core, m) {
       .def(
           "emit_time_code",
           [](SpwRmap::SpwRmapNodeBase &self, std::uint8_t tc) -> void {
-            unwrap_or_throw(self.emitTimeCode(tc));
-          },
-          py::arg("timecode"));
-
-  py::class_<SpwRmap::LegacySpwRmapTCPNode, SpwRmap::SpwRmapNodeBase>(
-      m, "LegacySpwRmapTCPNode")
-      .def(py::init<std::string_view, uint32_t>(), py::arg("ip_address"),
-           py::arg("port"))
-      .def(
-          "write",
-          [](SpwRmap::LegacySpwRmapTCPNode &self,
-             const SpwRmap::TargetNodeBase &target_node,
-             std::uint32_t memory_address, std::span<const std::uint8_t> data) {
-            return unwrap_or_throw(
-                self.write(target_node, memory_address, data));
-          },
-          py::arg("target_node"), py::arg("memory_address"), py::arg("data"))
-      .def(
-          "read",
-          [](SpwRmap::LegacySpwRmapTCPNode &self,
-             const SpwRmap::TargetNodeBase &target_node,
-             std::uint32_t memory_address, std::span<std::uint8_t> data) {
-            return unwrap_or_throw(
-                self.read(target_node, memory_address, data));
-          },
-          py::arg("target_node"), py::arg("memory_address"), py::arg("data"))
-      .def(
-          "emit_time_code",
-          [](SpwRmap::LegacySpwRmapTCPNode &self, std::uint8_t tc) -> void {
             unwrap_or_throw(self.emitTimeCode(tc));
           },
           py::arg("timecode"));

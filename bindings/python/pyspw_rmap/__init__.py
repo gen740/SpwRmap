@@ -1,8 +1,7 @@
-from ._core import TargetNode, LegacySpwRmapTCPNode, SpwRmapTCPNode
+from ._core import TargetNode, SpwRmapTCPNode
 
 
 __all__ = [
     "TargetNode",
-    "LegacySpwRmapTCPNode",
     "SpwRmapTCPNode",
 ]

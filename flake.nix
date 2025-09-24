@@ -12,158 +12,47 @@
       nixpkgs,
       ...
     }:
-    let
-      legacy_spw_rmap =
-        { pkgs }:
-        (pkgs.stdenv.mkDerivation {
-          pname = "space_wire_rmap_library";
-          version = "1.0.0";
-
-          src = pkgs.fetchFromGitHub {
-            owner = "yuasatakayuki";
-            repo = "SpaceWireRMAPLibrary";
-            rev = "master";
-            sha256 = "sha256-h0fw1qL/E+7VgoYSWlfS0sFwA1n+ZDZzYSStMwg8tAY=";
-          };
-
-          propagatedBuildInputs = [
-            pkgs.xercesc
-            (pkgs.stdenv.mkDerivation {
-              pname = "cxx_utilities";
-              version = "1.0.0";
-              src = pkgs.fetchFromGitHub {
-                owner = "yuasatakayuki";
-                repo = "CxxUtilities";
-                rev = "master";
-                sha256 = "sha256-C5pQJtpkHYTDxzpaZAFcDqozjBL1+i9Opx5vRp/l6uc=";
-              };
-
-              nativeBuildInputs = [ pkgs.perl ];
-
-              postPatch = ''
-                find . -name '*.hh' -print0 | while IFS= read -r -d "" file; do
-                  echo "Processing $file"
-                  perl -0777 -i -pe '
-                    s{
-                      \bthrow
-                      \s*                     # optional whitespace
-                      \(
-                      (                      # capture group for inner content
-                        (?:
-                          [^()]*             # non-parens
-                          (?:\([^()]*\)[^()]*)* # handle nested parens (1 level)
-                        )
-                      )
-                      \)
-                      (?!\s*;)               # negative lookahead: do not match if followed by ;
-                    }{}gsx
-                  ' "$file"
-                done
-              '';
-
-              installPhase = ''
-                mkdir -p $out/include
-                cp -r includes/* $out/include/
-              '';
-
-            })
-            (pkgs.stdenv.mkDerivation {
-              pname = "xml_utilities";
-              version = "1.0.0";
-              src = pkgs.fetchFromGitHub {
-                owner = "sakuraisoki";
-                repo = "XMLUtilities";
-                rev = "master";
-                sha256 = "sha256-7Bd65SWcH35hiZmC2XGNM/ytfttrbY7mWoFKRDgg/Lw=";
-              };
-              installPhase = ''
-                mkdir -p $out/include
-                cp -r include/* $out/include/
-              '';
-            })
-          ];
-
-          nativeBuildInputs = [
-            pkgs.perl
-          ];
-
-          postPatch = ''
-            find . -name '*.hh' -print0 | while IFS= read -r -d "" file; do
-              echo "Processing $file"
-              perl -0777 -i -pe '
-                s{
-                  \bthrow
-                  \s*                     # optional whitespace
-                  \(
-                  (                      # capture group for inner content
-                    (?:
-                      [^()]*             # non-parens
-                      (?:\([^()]*\)[^()]*)* # handle nested parens (1 level)
-                    )
-                  )
-                  \)
-                  (?!\s*;)               # negative lookahead: do not match if followed by ;
-                }{}gsx
-              ' "$file"
-            done
-          '';
-
-          installPhase = ''
-            mkdir -p $out/include
-            cp -r includes/* $out/include/
-          '';
-
-        });
-    in
     flake-parts.lib.mkFlake { inherit inputs; } {
       systems = nixpkgs.lib.platforms.all;
 
-      flake.overlays.default =
-        final: prev:
-        let
-          pkgs = final;
-        in
-        {
-          pythonPackagesExtensions = (prev.pythonPackagesExtensions or [ ]) ++ [
-            (python-final: python-prev: {
-              pyspw_rmap = python-final.buildPythonPackage {
-                pname = "pyspw_rmap";
-                version = "0.0.1";
-                format = "pyproject";
-                src = ./.; # pybind11 拡張のソース
+      flake.overlays.default = final: prev: {
+        pythonPackagesExtensions = (prev.pythonPackagesExtensions or [ ]) ++ [
+          (python-final: python-prev: {
+            pyspw_rmap = python-final.buildPythonPackage {
+              pname = "pyspw_rmap";
+              version = "0.0.1";
+              format = "pyproject";
+              src = ./.;
 
-                nativeBuildInputs =
-                  (with python-final; [
-                    scikit-build-core
-                    pybind11
-                    pybind11-stubgen
-                    wheel
-                  ])
-                  ++ (with final; [
-                    cmake
-                    ninja
-                  ])
-                  ++ [
-                  ];
-                buildInputs = [
-                  final.xercesc
-                  (legacy_spw_rmap { inherit pkgs; })
+              nativeBuildInputs =
+                (with python-final; [
+                  scikit-build-core
+                  pybind11
+                  pybind11-stubgen
+                  wheel
+                ])
+                ++ (with final; [
+                  cmake
+                  ninja
+                ])
+                ++ [
                 ];
-                pythonImportsCheck = [ "pyspw_rmap" ];
-                dontUseCmakeConfigure = true;
-                dontUseCmakeBuild = true;
-                dontUseCmakeInstall = true;
-              };
-            })
-          ];
-        };
+              buildInputs = [
+              ];
+              pythonImportsCheck = [ "pyspw_rmap" ];
+              dontUseCmakeConfigure = true;
+              dontUseCmakeBuild = true;
+              dontUseCmakeInstall = true;
+            };
+          })
+        ];
+      };
 
       perSystem =
         { pkgs, ... }:
         {
           devShells.default = pkgs.mkShell {
             packages = [
-              (legacy_spw_rmap { inherit pkgs; })
               pkgs.cmake
               pkgs.cmake-format
               pkgs.cmake-language-server
@@ -202,7 +91,6 @@
                 "-DSPWRMAP_BUILD_TESTS=ON"
               ];
               buildInputs = [
-                (legacy_spw_rmap { inherit pkgs; })
                 pkgs.gtest
               ];
             };

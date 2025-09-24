@@ -28,7 +28,7 @@ set(PYSPW_RMAP_STUB_OUTPUT "${PYSPW_RMAP_BUILD_DIR}/_core.pyi")
 
 add_custom_command(
   OUTPUT "${PYSPW_RMAP_STUB_OUTPUT}"
-  COMMAND ${Python_EXECUTABLE} -m pybind11_stubgen pyspw_rmap._core -o
+  COMMAND ${Python3_EXECUTABLE} -m pybind11_stubgen pyspw_rmap._core -o
           ${CMAKE_CURRENT_BINARY_DIR}
   COMMENT "Generating Python stub files for raw_rmap module"
   DEPENDS pyspw_rmap
