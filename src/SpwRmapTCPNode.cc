@@ -1,7 +1,6 @@
 #include "SpwRmap/SpwRmapTCPNode.hh"
 
 #include <algorithm>
-#include <print>
 
 namespace SpwRmap {
 
@@ -18,28 +17,6 @@ auto SpwRmapTCPNode::connect(std::chrono::microseconds recv_timeout,
     return std::unexpected{res.error()};
   }
   return {};
-}
-
-auto SpwRmapTCPNode::setBuffer(size_t send_buf_size, size_t recv_buf_size)
-    -> void {
-  receive_buffer_vec_ = std::make_unique<std::vector<uint8_t>>(recv_buf_size);
-  recv_buffer_ = std::span<uint8_t>(*receive_buffer_vec_);
-  send_buffer_vec_ = std::make_unique<std::vector<uint8_t>>(send_buf_size);
-  send_buffer_ = std::span<uint8_t>(*send_buffer_vec_);
-  read_packet_builder_.setBuffer(
-      send_buffer_.subspan(12));  // First 12 bytes are reserved for header
-  write_packet_builder_.setBuffer(
-      send_buffer_.subspan(12));  // First 12 bytes are reserved for header
-}
-
-auto SpwRmapTCPNode::setBuffer(std::span<uint8_t> send_buffer,
-                               std::span<uint8_t> recv_buffer) -> void {
-  send_buffer_ = send_buffer;
-  recv_buffer_ = recv_buffer;
-  read_packet_builder_.setBuffer(
-      send_buffer_.subspan(12));  // First 12 bytes are reserved for header
-  write_packet_builder_.setBuffer(
-      send_buffer_.subspan(12));  // First 12 bytes are reserved for header
 }
 
 auto SpwRmapTCPNode::recvExact_(std::span<uint8_t> buffer)
@@ -62,14 +39,14 @@ auto SpwRmapTCPNode::recvExact_(std::span<uint8_t> buffer)
   return total_length;
 }
 
-static inline auto calculateDataLength(const std::span<const uint8_t> header,
-                                       size_t max_size) noexcept
+static inline auto calculateDataLength(
+    const std::span<const uint8_t> header) noexcept
     -> std::expected<size_t, std::error_code> {
   if (header.size() < 12) {
     return std::unexpected{std::make_error_code(std::errc::invalid_argument)};
   }
-  uint16_t extra_length = (static_cast<uint16_t>(header[2]) << 8) |
-                          (static_cast<uint16_t>(header[3]) << 0);
+  std::ignore /* extra_length */ = (static_cast<uint16_t>(header[2]) << 8) |
+                                   (static_cast<uint16_t>(header[3]) << 0);
   uint64_t data_length = ((static_cast<uint64_t>(header[4]) << 56) |
                           (static_cast<uint64_t>(header[5]) << 48) |
                           (static_cast<uint64_t>(header[6]) << 40) |
@@ -78,21 +55,17 @@ static inline auto calculateDataLength(const std::span<const uint8_t> header,
                           (static_cast<uint64_t>(header[9]) << 16) |
                           (static_cast<uint64_t>(header[10]) << 8) |
                           (static_cast<uint64_t>(header[11]) << 0));
-  if (extra_length > 0 || data_length > max_size) {
-    return std::unexpected{std::make_error_code(std::errc::no_buffer_space)};
-  }
   return data_length;
 }
 
-auto SpwRmapTCPNode::recvAndParseOnePacket()
+auto SpwRmapTCPNode::recvAndParseOnePacket_()
     -> std::expected<std::size_t, std::error_code> {
   if (!tcp_client_) {
     return std::unexpected{std::make_error_code(std::errc::not_connected)};
   }
-
-  auto recv_buffer = recv_buffer_;
   size_t total_size = 0;
   auto eof = false;
+  auto recv_buffer = std::span(recv_buf_);
   while (!eof) {
     std::array<uint8_t, 12> header{};
     auto res = recvExact_(header);
@@ -108,7 +81,7 @@ auto SpwRmapTCPNode::recvAndParseOnePacket()
       return std::unexpected{std::make_error_code(std::errc::bad_message)};
     }
 
-    auto dataLength = calculateDataLength(header, recv_buffer.size());
+    auto dataLength = calculateDataLength(header);
     if (!dataLength.has_value()) {
       return std::unexpected(dataLength.error());
     }
@@ -116,7 +89,13 @@ auto SpwRmapTCPNode::recvAndParseOnePacket()
       return std::unexpected{std::make_error_code(std::errc::bad_message)};
     }
     if (*dataLength > recv_buffer.size()) {
-      return std::unexpected{std::make_error_code(std::errc::no_buffer_space)};
+      if (buffer_policy_ == BufferPolicy::Fixed) {
+        return std::unexpected{
+            std::make_error_code(std::errc::no_buffer_space)};
+      } else {
+        recv_buf_.resize(total_size + *dataLength);
+        recv_buffer = std::span(recv_buf_).subspan(total_size);
+      }
     }
     switch (header.at(0)) {
       case 0x00: {
@@ -128,7 +107,7 @@ auto SpwRmapTCPNode::recvAndParseOnePacket()
         eof = true;
       } break;
       case 0x01: {
-        auto res = ignoreNBytes(*dataLength);
+        auto res = ignoreNBytes_(*dataLength);
         if (!res.has_value()) {
           return std::unexpected(res.error());
         }
@@ -164,14 +143,14 @@ auto SpwRmapTCPNode::recvAndParseOnePacket()
         return std::unexpected{std::make_error_code(std::errc::bad_message)};
     }
   }
-  auto status = packet_parser_.parse(recv_buffer_.first(total_size));
+  auto status = packet_parser_.parse(std::span(recv_buf_).first(total_size));
   if (status != PacketParser::Status::Success) {
     return std::unexpected{make_error_code(status)};
   }
   return total_size;
 }
 
-auto SpwRmapTCPNode::ignoreNBytes(std::size_t n)
+auto SpwRmapTCPNode::ignoreNBytes_(std::size_t n)
     -> std::expected<std::size_t, std::error_code> {
   if (!tcp_client_) {
     return std::unexpected{std::make_error_code(std::errc::not_connected)};
@@ -208,11 +187,17 @@ auto SpwRmapTCPNode::write(const TargetNodeBase& target_node,
   auto expected_length = target_node.getTargetSpaceWireAddress().size() +
                          (target_node.getReplyAddress().size() + 3) / 4 * 4 +
                          4 + 12 + 1 + data.size();
-  if (expected_length > send_buffer_.size()) {
-    return std::unexpected{std::make_error_code(std::errc::no_buffer_space)};
+  auto send_buffer = std::span(send_buf_);
+  if (expected_length > send_buffer.size()) {
+    if (buffer_policy_ == BufferPolicy::Fixed) {
+      return std::unexpected{std::make_error_code(std::errc::no_buffer_space)};
+    } else {
+      send_buf_.resize(expected_length);
+      send_buffer = std::span(send_buf_);
+    }
   }
 
-  auto res = write_packet_builder_.build({
+  auto config = WritePacketConfig{
       .targetSpaceWireAddress = target_node.getTargetSpaceWireAddress(),
       .replyAddress = target_node.getReplyAddress(),
       .targetLogicalAddress = target_node.getTargetLogicalAddress(),
@@ -221,25 +206,26 @@ auto SpwRmapTCPNode::write(const TargetNodeBase& target_node,
       .extendedAddress = 0x00,
       .address = memory_address,
       .data = data,
-  });
+  };
+
+  auto res = write_packet_builder_.build(config, send_buffer.subspan(12));
   if (!res.has_value()) {
     return std::unexpected{res.error()};
   }
-  auto total_size = write_packet_builder_.getTotalSize();
-  send_buffer_[0] = 0x00;
-  send_buffer_[1] = 0x00;
-  send_buffer_[2] = 0x00;
-  send_buffer_[3] = 0x00;
-  send_buffer_[4] = static_cast<uint8_t>((total_size >> 56) & 0xFF);
-  send_buffer_[5] = static_cast<uint8_t>((total_size >> 48) & 0xFF);
-  send_buffer_[6] = static_cast<uint8_t>((total_size >> 40) & 0xFF);
-  send_buffer_[7] = static_cast<uint8_t>((total_size >> 32) & 0xFF);
-  send_buffer_[8] = static_cast<uint8_t>((total_size >> 24) & 0xFF);
-  send_buffer_[9] = static_cast<uint8_t>((total_size >> 16) & 0xFF);
-  send_buffer_[10] = static_cast<uint8_t>((total_size >> 8) & 0xFF);
-  send_buffer_[11] = static_cast<uint8_t>((total_size >> 0) & 0xFF);
-  auto res_send =
-      tcp_client_->sendAll(send_buffer_.subspan(0, total_size + 12));
+  auto total_size = write_packet_builder_.getTotalSize(config);
+  send_buffer[0] = 0x00;
+  send_buffer[1] = 0x00;
+  send_buffer[2] = 0x00;
+  send_buffer[3] = 0x00;
+  send_buffer[4] = static_cast<uint8_t>((total_size >> 56) & 0xFF);
+  send_buffer[5] = static_cast<uint8_t>((total_size >> 48) & 0xFF);
+  send_buffer[6] = static_cast<uint8_t>((total_size >> 40) & 0xFF);
+  send_buffer[7] = static_cast<uint8_t>((total_size >> 32) & 0xFF);
+  send_buffer[8] = static_cast<uint8_t>((total_size >> 24) & 0xFF);
+  send_buffer[9] = static_cast<uint8_t>((total_size >> 16) & 0xFF);
+  send_buffer[10] = static_cast<uint8_t>((total_size >> 8) & 0xFF);
+  send_buffer[11] = static_cast<uint8_t>((total_size >> 0) & 0xFF);
+  auto res_send = tcp_client_->sendAll(send_buffer.subspan(0, total_size + 12));
   if (!res_send.has_value()) {
     return std::unexpected{res_send.error()};
   }
@@ -247,7 +233,7 @@ auto SpwRmapTCPNode::write(const TargetNodeBase& target_node,
   size_t max_trial_count = 10;
   size_t trial_count = 0;
   do {
-    auto recvRes = recvAndParseOnePacket();
+    auto recvRes = recvAndParseOnePacket_();
     if (!recvRes.has_value()) {
       return std::unexpected{recvRes.error()};
     }
@@ -270,10 +256,17 @@ auto SpwRmapTCPNode::read(const TargetNodeBase& target_node,
   auto expected_length = target_node.getTargetSpaceWireAddress().size() +
                          (target_node.getReplyAddress().size() + 3) / 4 * 4 +
                          4 + 12 + 1;
-  if (expected_length > send_buffer_.size()) {
-    return std::unexpected{std::make_error_code(std::errc::no_buffer_space)};
+  auto send_buffer = std::span(send_buf_);
+  if (expected_length > send_buffer.size()) {
+    if (buffer_policy_ == BufferPolicy::Fixed) {
+      return std::unexpected{std::make_error_code(std::errc::no_buffer_space)};
+    } else {
+      send_buf_.resize(expected_length);
+      send_buffer = std::span(send_buf_);
+    }
   }
-  auto res = read_packet_builder_.build({
+
+  auto config = ReadPacketConfig{
       .targetSpaceWireAddress = target_node.getTargetSpaceWireAddress(),
       .replyAddress = target_node.getReplyAddress(),
       .targetLogicalAddress = target_node.getTargetLogicalAddress(),
@@ -282,27 +275,34 @@ auto SpwRmapTCPNode::read(const TargetNodeBase& target_node,
       .extendedAddress = 0x00,
       .address = memory_address,
       .dataLength = static_cast<uint32_t>(data.size()),
-  });
+  };
+
+  auto res = read_packet_builder_.build(config, send_buffer.subspan(12));
   if (!res.has_value()) {
     return std::unexpected{res.error()};
   }
-  if (send_buffer_.size() < read_packet_builder_.getTotalSize() + 12) {
-    return std::unexpected{std::make_error_code(std::errc::no_buffer_space)};
+  if (send_buffer.size() < read_packet_builder_.getTotalSize(config) + 12) {
+    if (buffer_policy_ == BufferPolicy::Fixed) {
+      return std::unexpected{std::make_error_code(std::errc::no_buffer_space)};
+    } else {
+      send_buf_.resize(read_packet_builder_.getTotalSize(config) + 12);
+      send_buffer = std::span(send_buf_);
+    }
   }
-  auto total_size = read_packet_builder_.getTotalSize();
-  send_buffer_[0] = 0x00;
-  send_buffer_[1] = 0x00;
-  send_buffer_[2] = 0x00;
-  send_buffer_[3] = 0x00;
-  send_buffer_[4] = static_cast<uint8_t>((total_size >> 56) & 0xFF);
-  send_buffer_[5] = static_cast<uint8_t>((total_size >> 48) & 0xFF);
-  send_buffer_[6] = static_cast<uint8_t>((total_size >> 40) & 0xFF);
-  send_buffer_[7] = static_cast<uint8_t>((total_size >> 32) & 0xFF);
-  send_buffer_[8] = static_cast<uint8_t>((total_size >> 24) & 0xFF);
-  send_buffer_[9] = static_cast<uint8_t>((total_size >> 16) & 0xFF);
-  send_buffer_[10] = static_cast<uint8_t>((total_size >> 8) & 0xFF);
-  send_buffer_[11] = static_cast<uint8_t>((total_size >> 0) & 0xFF);
-  auto res_send = tcp_client_->sendAll(send_buffer_.first(total_size + 12));
+  auto total_size = read_packet_builder_.getTotalSize(config);
+  send_buffer[0] = 0x00;
+  send_buffer[1] = 0x00;
+  send_buffer[2] = 0x00;
+  send_buffer[3] = 0x00;
+  send_buffer[4] = static_cast<uint8_t>((total_size >> 56) & 0xFF);
+  send_buffer[5] = static_cast<uint8_t>((total_size >> 48) & 0xFF);
+  send_buffer[6] = static_cast<uint8_t>((total_size >> 40) & 0xFF);
+  send_buffer[7] = static_cast<uint8_t>((total_size >> 32) & 0xFF);
+  send_buffer[8] = static_cast<uint8_t>((total_size >> 24) & 0xFF);
+  send_buffer[9] = static_cast<uint8_t>((total_size >> 16) & 0xFF);
+  send_buffer[10] = static_cast<uint8_t>((total_size >> 8) & 0xFF);
+  send_buffer[11] = static_cast<uint8_t>((total_size >> 0) & 0xFF);
+  auto res_send = tcp_client_->sendAll(send_buffer.first(total_size + 12));
   if (!res_send.has_value()) {
     return std::unexpected{res_send.error()};
   }
@@ -310,7 +310,7 @@ auto SpwRmapTCPNode::read(const TargetNodeBase& target_node,
   size_t max_trial_count = 10;
   size_t trial_count = 0;
   do {
-    auto recvRes = recvAndParseOnePacket();
+    auto recvRes = recvAndParseOnePacket_();
     if (!recvRes.has_value()) {
       return std::unexpected{recvRes.error()};
     }

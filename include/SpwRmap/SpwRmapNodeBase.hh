@@ -23,11 +23,11 @@ class SpwRmapNodeBase {
   SpwRmapNodeBase() = default;
   virtual ~SpwRmapNodeBase() = default;
 
-  SpwRmapNodeBase(const SpwRmapNodeBase &) = delete;
-  auto operator=(const SpwRmapNodeBase &) -> SpwRmapNodeBase & = delete;
+  SpwRmapNodeBase(const SpwRmapNodeBase&) = delete;
+  auto operator=(const SpwRmapNodeBase&) -> SpwRmapNodeBase& = delete;
 
-  SpwRmapNodeBase(SpwRmapNodeBase &&) = delete;
-  auto operator=(SpwRmapNodeBase &&) -> SpwRmapNodeBase & = delete;
+  SpwRmapNodeBase(SpwRmapNodeBase&&) = delete;
+  auto operator=(SpwRmapNodeBase&&) -> SpwRmapNodeBase& = delete;
 
   /**
    * @brief Writes data to a target node.
@@ -39,7 +39,7 @@ class SpwRmapNodeBase {
    * @param memory_address Target memory address.
    * @param data Data to write.
    */
-  virtual auto write(const TargetNodeBase &target_node, uint32_t memory_address,
+  virtual auto write(const TargetNodeBase& target_node, uint32_t memory_address,
                      const std::span<const uint8_t> data) noexcept
       -> std::expected<std::monostate, std::error_code> = 0;
 
@@ -53,7 +53,7 @@ class SpwRmapNodeBase {
    * @param memory_address Target memory address.
    * @param data Reference to a span where the read data will be stored.
    */
-  virtual auto read(const TargetNodeBase &target_node, uint32_t memory_address,
+  virtual auto read(const TargetNodeBase& target_node, uint32_t memory_address,
                     const std::span<uint8_t> data) noexcept
       -> std::expected<std::monostate, std::error_code> = 0;
 
@@ -67,7 +67,7 @@ class SpwRmapNodeBase {
    * @param memory_address Target memory address.
    * @param data Data to write.
    */
-  virtual auto writeAsync(const TargetNodeBase &target_node,
+  virtual auto writeAsync(const TargetNodeBase& target_node,
                           uint32_t memory_address,
                           const std::span<const uint8_t> data) noexcept
       -> std::future<std::expected<std::monostate, std::error_code>> {
@@ -90,7 +90,7 @@ class SpwRmapNodeBase {
    * @param memory_address Target memory address.
    * @param data Reference to a span where the read data will be stored.
    */
-  virtual auto readAsync(const TargetNodeBase &target_node,
+  virtual auto readAsync(const TargetNodeBase& target_node,
                          uint32_t memory_address,
                          const std::span<uint8_t> data) noexcept
       -> std::future<std::expected<std::monostate, std::error_code>> {

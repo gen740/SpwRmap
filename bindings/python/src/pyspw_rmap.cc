@@ -5,10 +5,13 @@
 #include <SpwRmap/SpwRmapNodeBase.hh>
 #include <SpwRmap/SpwRmapTCPNode.hh>
 #include <SpwRmap/TargetNode.hh>
+#include <utility>
 
 #include "span_caster.hh"
 
 namespace py = pybind11;
+
+using namespace std::chrono_literals;
 
 struct PyTargetNodeBase : public SpwRmap::TargetNodeBase {
   using SpwRmap::TargetNodeBase::TargetNodeBase;
@@ -65,6 +68,47 @@ inline auto unwrap_or_throw(std::expected<std::monostate, std::error_code> r)
   }
 }
 
+struct PySpwRmapTCPNodeConfig {
+  SpwRmap::SpwRmapTCPNodeConfig cfg{};
+  std::string ip_storage;
+
+  PySpwRmapTCPNodeConfig(
+      std::string ip, uint32_t port, size_t send_sz = 4096,
+      size_t recv_sz = 4096,
+      SpwRmap::BufferPolicy policy = SpwRmap::BufferPolicy::AutoResize)
+      : ip_storage(std::move(ip)) {
+    cfg.ip_address = ip_storage;
+    cfg.port = port;
+    cfg.send_buffer_size = send_sz;
+    cfg.recv_buffer_size = recv_sz;
+    cfg.buffer_policy = policy;
+  }
+
+  void set_ip(const std::string& ip) {
+    ip_storage = ip;
+    cfg.ip_address = ip_storage;
+  }
+  [[nodiscard]] auto get_ip() const -> const std::string& { return ip_storage; }
+
+  void set_port(uint32_t p) { cfg.port = p; }
+  [[nodiscard]] auto get_port() const -> uint32_t { return cfg.port; }
+
+  void set_send(size_t n) { cfg.send_buffer_size = n; }
+  [[nodiscard]] auto get_send() const -> size_t { return cfg.send_buffer_size; }
+
+  void set_recv(size_t n) { cfg.recv_buffer_size = n; }
+  [[nodiscard]] auto get_recv() const -> size_t { return cfg.recv_buffer_size; }
+
+  void set_policy(SpwRmap::BufferPolicy p) { cfg.buffer_policy = p; }
+  [[nodiscard]] auto get_policy() const -> SpwRmap::BufferPolicy {
+    return cfg.buffer_policy;
+  }
+
+  [[nodiscard]] auto get_cfg() const -> SpwRmap::SpwRmapTCPNodeConfig {
+    return cfg;
+  }
+};
+
 PYBIND11_MODULE(_core, m) {
   py::class_<SpwRmap::TargetNodeBase, PyTargetNodeBase>(m, "_TargetNodeBase")
       .def(py::init<uint8_t, uint8_t>(), py::arg("logical_address") = 0x00,
@@ -99,7 +143,8 @@ PYBIND11_MODULE(_core, m) {
           "write",
           [](SpwRmap::SpwRmapNodeBase& self,
              const SpwRmap::TargetNodeBase& target_node,
-             std::uint32_t memory_address, std::span<const std::uint8_t> data) {
+             std::uint32_t memory_address,
+             std::span<const std::uint8_t> data) -> void {
             return unwrap_or_throw(
                 self.write(target_node, memory_address, data));
           },
@@ -108,7 +153,8 @@ PYBIND11_MODULE(_core, m) {
           "read",
           [](SpwRmap::SpwRmapNodeBase& self,
              const SpwRmap::TargetNodeBase& target_node,
-             std::uint32_t memory_address, std::span<std::uint8_t> data) {
+             std::uint32_t memory_address,
+             std::span<std::uint8_t> data) -> void {
             return unwrap_or_throw(
                 self.read(target_node, memory_address, data));
           },
@@ -120,10 +166,28 @@ PYBIND11_MODULE(_core, m) {
           },
           py::arg("timecode"));
 
+  py::enum_<SpwRmap::BufferPolicy>(m, "SpwRmapBufferPolicy")
+      .value("Fixed", SpwRmap::BufferPolicy::Fixed)
+      .value("AutoResize", SpwRmap::BufferPolicy::AutoResize)
+      .export_values();
+
   py::class_<SpwRmap::SpwRmapTCPNode, SpwRmap::SpwRmapNodeBase>(
       m, "SpwRmapTCPNode")
-      .def(py::init<std::string_view, uint32_t>(), py::arg("ip_address"),
-           py::arg("port"))
+      .def(py::init([](const std::string& ip, uint32_t port, size_t send_sz,
+                       size_t recv_sz, SpwRmap::BufferPolicy policy)
+                        -> std::unique_ptr<SpwRmap::SpwRmapTCPNode> {
+             SpwRmap::SpwRmapTCPNodeConfig cfg{.ip_address = ip,
+                                               .port = port,
+                                               .send_buffer_size = send_sz,
+                                               .recv_buffer_size = recv_sz,
+                                               .buffer_policy = policy};
+             return std::make_unique<SpwRmap::SpwRmapTCPNode>(cfg);
+           }),
+           py::arg("ip_address"), py::arg("port"),
+           py::arg_v("send_buffer_size", 4096),
+           py::arg_v("recv_buffer_size", 4096),
+           py::arg_v("buffer_policy", SpwRmap::BufferPolicy::AutoResize,
+                     "SpwRmapBufferPolicy.AutoResize"))
       .def(
           "connect",
           [](SpwRmap::SpwRmapTCPNode& self,
@@ -133,20 +197,14 @@ PYBIND11_MODULE(_core, m) {
             unwrap_or_throw(
                 self.connect(recv_timeout, send_timeout, connect_timeout));
           },
-          py::arg("recv_timeout"), py::arg("send_timeout"),
-          py::arg("connect_timeout"))
-      .def(
-          "set_buffer",
-          [](SpwRmap::SpwRmapTCPNode& self, size_t send_buf_size,
-             size_t recv_buf_size) {
-            return self.setBuffer(send_buf_size, recv_buf_size);
-          },
-          py::arg("send_buffer_size"), py::arg("recv_buffer_size"))
+          py::arg("recv_timeout") = 100ms, py::arg("send_timeout") = 100ms,
+          py::arg("connect_timeout") = 100ms)
       .def(
           "write",
           [](SpwRmap::SpwRmapTCPNode& self,
              const SpwRmap::TargetNodeBase& target_node,
-             std::uint32_t memory_address, std::span<const std::uint8_t> data) {
+             std::uint32_t memory_address,
+             std::span<const std::uint8_t> data) -> void {
             return unwrap_or_throw(
                 self.write(target_node, memory_address, data));
           },
@@ -155,7 +213,8 @@ PYBIND11_MODULE(_core, m) {
           "read",
           [](SpwRmap::SpwRmapTCPNode& self,
              const SpwRmap::TargetNodeBase& target_node,
-             std::uint32_t memory_address, std::span<std::uint8_t> data) {
+             std::uint32_t memory_address,
+             std::span<std::uint8_t> data) -> void {
             return unwrap_or_throw(
                 self.read(target_node, memory_address, data));
           },

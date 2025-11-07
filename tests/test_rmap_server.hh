@@ -52,7 +52,7 @@ TEST(SpwRmap, WithSimpleTCPServer) {
   const uint16_t port = pick_free_port();
   const std::string port_str = std::to_string(port);
 
-  std::thread server_thread([&]() {
+  std::thread server_thread([&]() -> void {
     SpwRmap::testing::SSDTP2Server server("0.0.0.0", port_str);
     auto res = server.run();
     if (!res.has_value()) {

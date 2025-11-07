@@ -5,7 +5,6 @@
 #include <cassert>
 #include <cstdint>
 #include <expected>
-#include <print>
 #include <random>
 #include <span>
 #include <string_view>
@@ -123,23 +122,23 @@ class SSDTP2Server {
           if (!memory_data.has_value()) {
             return std::unexpected{memory_data.error()};
           }
-          {
-            auto res = read_reply_builder_.build({
-                .replyAddress = packet_parser_.getPacket().replyAddress,
-                .initiatorLogicalAddress =
-                    packet_parser_.getPacket().initiatorLogicalAddress,
-                .status = 0x00,
-                .targetLogicalAddress =
-                    packet_parser_.getPacket().targetLogicalAddress,
-                .transactionID = packet_parser_.getPacket().transactionID,
-                .data = *memory_data,
-            });
-            if (!res.has_value()) {
-              return std::unexpected{res.error()};
-            }
+          auto config = ReadReplyPacketConfig{
+              .replyAddress = packet_parser_.getPacket().replyAddress,
+              .initiatorLogicalAddress =
+                  packet_parser_.getPacket().initiatorLogicalAddress,
+              .status = 0x00,
+              .targetLogicalAddress =
+                  packet_parser_.getPacket().targetLogicalAddress,
+              .transactionID = packet_parser_.getPacket().transactionID,
+              .data = *memory_data,
+          };
+          std::vector<uint8_t> buffer(read_reply_builder_.getTotalSize(config));
+          auto res = read_reply_builder_.build(config, buffer);
+          if (!res.has_value()) {
+            return std::unexpected{res.error()};
           }
           {
-            auto res = send_ssdtp2(*read_reply_builder_.getPacket());
+            auto res = send_ssdtp2(buffer);
             if (!res.has_value()) {
               return std::unexpected{res.error()};
             }
@@ -153,23 +152,25 @@ class SSDTP2Server {
           if (!memory_res.has_value()) {
             return std::unexpected{memory_res.error()};
           }
-          {
-            auto res = write_reply_builder_.build({
-                .replyAddress = packet_parser_.getPacket().replyAddress,
-                .initiatorLogicalAddress =
-                    packet_parser_.getPacket().initiatorLogicalAddress,
-                .status = 0x00,
-                .targetLogicalAddress =
-                    packet_parser_.getPacket().targetLogicalAddress,
-                .transactionID = packet_parser_.getPacket().transactionID,
-                .verifyMode = true,  // Always true for this server
-            });
-            if (!res.has_value()) {
-              return std::unexpected{res.error()};
-            }
+          auto config = WriteReplyPacketConfig{
+              .replyAddress = packet_parser_.getPacket().replyAddress,
+              .initiatorLogicalAddress =
+                  packet_parser_.getPacket().initiatorLogicalAddress,
+              .status = 0x00,
+              .targetLogicalAddress =
+                  packet_parser_.getPacket().targetLogicalAddress,
+              .transactionID = packet_parser_.getPacket().transactionID,
+              .verifyMode = true,  // Always true for this server
+          };
+          std::vector<uint8_t> buffer(
+              write_reply_builder_.getTotalSize(config));
+
+          auto res = write_reply_builder_.build(config, buffer);
+          if (!res.has_value()) {
+            return std::unexpected{res.error()};
           }
           {
-            auto res = send_ssdtp2(*write_reply_builder_.getPacket());
+            auto res = send_ssdtp2(buffer);
             if (!res.has_value()) {
               return std::unexpected{res.error()};
             }

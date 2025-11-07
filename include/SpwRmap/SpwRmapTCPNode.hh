@@ -3,7 +3,6 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
-#include <print>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -18,6 +17,19 @@ namespace SpwRmap {
 
 using namespace std::chrono_literals;
 
+enum class BufferPolicy : uint8_t {
+  Fixed,       // Fixed size
+  AutoResize,  // Auto resize if needed
+};
+
+struct SpwRmapTCPNodeConfig {
+  std::string_view ip_address;
+  uint32_t port;
+  size_t send_buffer_size = 4096;
+  size_t recv_buffer_size = 4096;
+  BufferPolicy buffer_policy = BufferPolicy::AutoResize;
+};
+
 class SpwRmapTCPNode : public SpwRmapNodeBase {
  private:
   std::unique_ptr<internal::TCPClient> tcp_client_;
@@ -26,31 +38,33 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
   std::string_view ip_address_;
   std::string port_;
 
-  std::unique_ptr<std::vector<uint8_t>> receive_buffer_vec_ = nullptr;
-  std::span<uint8_t> recv_buffer_ = {};
-
-  std::unique_ptr<std::vector<uint8_t>> send_buffer_vec_ = nullptr;
-  std::span<uint8_t> send_buffer_ = {};
+  std::pmr::vector<uint8_t> recv_buf_ = {};
+  std::pmr::vector<uint8_t> send_buf_ = {};
 
   PacketParser packet_parser_ = {};
   ReadPacketBuilder read_packet_builder_ = {};
   WritePacketBuilder write_packet_builder_ = {};
   uint8_t initiator_logical_address_ = 0xFE;
+  BufferPolicy buffer_policy_ = BufferPolicy::AutoResize;
 
  public:
-  explicit SpwRmapTCPNode(std::string_view ip_address, uint32_t port) noexcept
-      : ip_address_(ip_address), port_(std::to_string(port)) {}
+  explicit SpwRmapTCPNode(SpwRmapTCPNodeConfig config,
+                          std::pmr::memory_resource* mem_res =
+                              std::pmr::get_default_resource()) noexcept
+      : ip_address_(config.ip_address),
+        port_(std::to_string(config.port)),
+        recv_buf_(mem_res),
+        send_buf_(mem_res),
+        buffer_policy_(config.buffer_policy) {
+    recv_buf_.resize(config.recv_buffer_size);
+    send_buf_.resize(config.send_buffer_size);
+  }
 
  public:
   auto connect(std::chrono::microseconds recv_timeout = 100ms,
                std::chrono::microseconds send_timeout = 100ms,
                std::chrono::microseconds connect_timeout = 100ms)
       -> std::expected<std::monostate, std::error_code>;
-
-  auto setBuffer(size_t send_buf_size, size_t recv_buf_size) -> void;
-
-  auto setBuffer(std::span<uint8_t> send_buffer, std::span<uint8_t> recv_buffer)
-      -> void;
 
   auto setInitiatorLogicalAddress(uint8_t address) -> void {
     initiator_logical_address_ = address;
@@ -60,9 +74,9 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
   auto recvExact_(std::span<uint8_t> buffer)
       -> std::expected<std::size_t, std::error_code>;
 
-  auto recvAndParseOnePacket() -> std::expected<std::size_t, std::error_code>;
+  auto recvAndParseOnePacket_() -> std::expected<std::size_t, std::error_code>;
 
-  auto ignoreNBytes(std::size_t n)
+  auto ignoreNBytes_(std::size_t n)
       -> std::expected<std::size_t, std::error_code>;
 
  public:

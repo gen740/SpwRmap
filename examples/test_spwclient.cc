@@ -5,10 +5,9 @@
 using namespace std::chrono_literals;
 
 auto main() -> int {
-  SpwRmap::SpwRmapTCPNode rmap("localhost", 10032);
+  SpwRmap::SpwRmapTCPNode rmap({.ip_address = "localhost", .port = 10032});
 
   std::println("Connecting to SpaceWire interface at localhost:10032");
-  rmap.setBuffer(1024, 1024);
   std::println("Connected successfully");
 
   SpwRmap::TargetNodeDynamic target_node{0xFE, {0x00, 0x01, 0x02, 0x03}, {}};
@@ -34,7 +33,7 @@ auto main() -> int {
       std::println("Read error: {}", res.error().message());
     } else {
       std::println("Read successful, data:");
-      for (const auto &byte : read_data) {
+      for (const auto& byte : read_data) {
         std::print("{:02X} ", byte);
       }
       std::println();

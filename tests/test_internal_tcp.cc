@@ -64,7 +64,7 @@ TEST(TcpClientServer, ServerRecieve) {
   server_recv_buf.resize(TEST_BUFFER_SIZE);
   bool server_emit_error = false;
 
-  std::thread th([&]() {
+  std::thread th([&]() -> void {
     try {
       std::string port_str = std::to_string(port);
       TCPServer server("127.0.0.1", port_str);
@@ -145,7 +145,7 @@ TEST(TcpClientServer, ClientRecieve) {
     byte = static_cast<uint8_t>(std::uniform_int_distribution<>(0, 255)(rng));
   }
   bool server_emit_error = false;
-  std::thread th([&]() {
+  std::thread th([&]() -> void {
     try {
       std::string port_str = std::to_string(port);
       TCPServer server("127.0.0.1", port_str);

@@ -9,7 +9,6 @@
   outputs =
     inputs@{
       flake-parts,
-      nixpkgs,
       ...
     }:
     flake-parts.lib.mkFlake { inherit inputs; } {
@@ -96,6 +95,7 @@
               buildInputs = [
                 pkgs.gtest
               ];
+              doCheck = true;
             };
           };
 

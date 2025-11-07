@@ -19,7 +19,8 @@ auto main() -> int {
       .key = 0xAB,
       .incrementMode = true};
   SpwRmap::ReadPacketBuilder read_packet_builder;
-  auto res = read_packet_builder.build(config);
+  std::vector<uint8_t> buffer(read_packet_builder.getTotalSize(config));
+  auto res = read_packet_builder.build(config, buffer);
   if (!res.has_value()) {
     std::cerr << "Failed to build packet: " << res.error().message()
               << std::endl;
