@@ -125,4 +125,5 @@ inline auto make_error_code(PacketParser::Status e) noexcept
 namespace std {
 template <>
 struct is_error_code_enum<SpwRmap::PacketParser::Status> : true_type {};
+
 }  // namespace std

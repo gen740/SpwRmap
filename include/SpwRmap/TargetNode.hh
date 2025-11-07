@@ -22,10 +22,10 @@ class TargetNodeBase {
                  uint8_t initiator_logical_address = 0xFE) noexcept
       : logical_address_(logical_address),
         initiator_logical_address_(initiator_logical_address) {}
-  TargetNodeBase(const TargetNodeBase &) = default;
-  TargetNodeBase(TargetNodeBase &&) = default;
-  auto operator=(const TargetNodeBase &) -> TargetNodeBase & = default;
-  auto operator=(TargetNodeBase &&) -> TargetNodeBase & = default;
+  TargetNodeBase(const TargetNodeBase&) = default;
+  TargetNodeBase(TargetNodeBase&&) = default;
+  auto operator=(const TargetNodeBase&) -> TargetNodeBase& = default;
+  auto operator=(TargetNodeBase&&) -> TargetNodeBase& = default;
   virtual ~TargetNodeBase() = default;
 
   [[nodiscard]] auto getTargetLogicalAddress() const noexcept -> uint8_t {
@@ -51,8 +51,8 @@ class TargetNodeFixed : public TargetNodeBase {
 
  public:
   TargetNodeFixed(uint8_t logical_address,
-                  std::array<uint8_t, TargetLength> &&target_spacewire_address,
-                  std::array<uint8_t, ReplyLength> &&reply_address,
+                  std::array<uint8_t, TargetLength>&& target_spacewire_address,
+                  std::array<uint8_t, ReplyLength>&& reply_address,
                   uint8_t initiator_logical_address = 0xFE) noexcept
       : TargetNodeBase(logical_address, initiator_logical_address),
         target_spacewire_address(std::move(target_spacewire_address)),
@@ -76,8 +76,8 @@ class TargetNodeDynamic : public TargetNodeBase {
 
  public:
   TargetNodeDynamic(uint8_t logical_address,
-                    std::vector<uint8_t> &&target_spacewire_address,
-                    std::vector<uint8_t> &&reply_address,
+                    std::vector<uint8_t>&& target_spacewire_address,
+                    std::vector<uint8_t>&& reply_address,
                     uint8_t initiator_logical_address = 0xFE) noexcept
       : TargetNodeBase(logical_address, initiator_logical_address),
         target_spacewire_address(std::move(target_spacewire_address)),

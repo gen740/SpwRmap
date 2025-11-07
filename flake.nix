@@ -13,7 +13,12 @@
       ...
     }:
     flake-parts.lib.mkFlake { inherit inputs; } {
-      systems = nixpkgs.lib.platforms.all;
+      systems = [
+        "aarch64-darwin"
+        "x86_64-darwin"
+        "aarch64-linux"
+        "x86_64-linux"
+      ];
 
       flake.overlays.default = final: prev: {
         pythonPackagesExtensions = (prev.pythonPackagesExtensions or [ ]) ++ [
@@ -37,8 +42,6 @@
                 ])
                 ++ [
                 ];
-              buildInputs = [
-              ];
               pythonImportsCheck = [ "pyspw_rmap" ];
               dontUseCmakeConfigure = true;
               dontUseCmakeBuild = true;
@@ -112,20 +115,11 @@
                   nix develop --command cmake --build build
                 '').outPath;
             };
-            check = {
-              type = "app";
-              program =
-                (pkgs.writeShellScript "build-spw-rmap" ''
-                  echo "Running clang-tidy ..."
-                  ${pkgs.ripgrep}/bin/rg -0 -tcpp -l . | \
-                    xargs -0 -n 1 clang-tidy -p ./build
-                  echo "Running clang-format ..."
-                  ${pkgs.ripgrep}/bin/rg -0 -tcpp -l . | \
-                    xargs -0 -n 1 -P 8 clang-format -i
-                  echo "OK"
-                '').outPath;
-            };
           };
+
+          formatter = pkgs.writeShellScriptBin "fmt" ''
+            ${pkgs.treefmt}/bin/treefmt --config-file ./treefmt.toml .
+          '';
         };
     };
 }

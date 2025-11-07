@@ -16,6 +16,8 @@
 
 namespace SpwRmap {
 
+using namespace std::chrono_literals;
+
 class SpwRmapTCPNode : public SpwRmapNodeBase {
  private:
   std::unique_ptr<internal::TCPClient> tcp_client_;
@@ -40,11 +42,10 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
       : ip_address_(ip_address), port_(std::to_string(port)) {}
 
  public:
-  auto connect(
-      std::chrono::microseconds recv_timeout = std::chrono::milliseconds(100),
-      std::chrono::microseconds send_timeout = std::chrono::milliseconds(100),
-      std::chrono::microseconds connect_timeout = std::chrono::milliseconds(
-          100)) -> std::expected<std::monostate, std::error_code>;
+  auto connect(std::chrono::microseconds recv_timeout = 100ms,
+               std::chrono::microseconds send_timeout = 100ms,
+               std::chrono::microseconds connect_timeout = 100ms)
+      -> std::expected<std::monostate, std::error_code>;
 
   auto setBuffer(size_t send_buf_size, size_t recv_buf_size) -> void;
 

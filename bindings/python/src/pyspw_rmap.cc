@@ -1,3 +1,4 @@
+#include <pybind11/chrono.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
@@ -28,14 +29,14 @@ struct PyTargetNodeBase : public SpwRmap::TargetNodeBase {
 struct PySpwRmapNodeBase : public SpwRmap::SpwRmapNodeBase {
   using SpwRmap::SpwRmapNodeBase::SpwRmapNodeBase;
 
-  [[nodiscard]] auto write(const SpwRmap::TargetNodeBase &, uint32_t,
+  [[nodiscard]] auto write(const SpwRmap::TargetNodeBase&, uint32_t,
                            const std::span<const uint8_t>) noexcept
       -> std::expected<std::monostate, std::error_code> override {
     using R = std::expected<std::monostate, std::error_code>;
     PYBIND11_OVERRIDE_PURE(R, SpwRmap::SpwRmapNodeBase, write);
   }
 
-  [[nodiscard]] auto read(const SpwRmap::TargetNodeBase &, uint32_t,
+  [[nodiscard]] auto read(const SpwRmap::TargetNodeBase&, uint32_t,
                           const std::span<uint8_t>) noexcept
       -> std::expected<std::monostate, std::error_code> override {
     using R = std::expected<std::monostate, std::error_code>;
@@ -96,8 +97,8 @@ PYBIND11_MODULE(_core, m) {
       .def(py::init<>())
       .def(
           "write",
-          [](SpwRmap::SpwRmapNodeBase &self,
-             const SpwRmap::TargetNodeBase &target_node,
+          [](SpwRmap::SpwRmapNodeBase& self,
+             const SpwRmap::TargetNodeBase& target_node,
              std::uint32_t memory_address, std::span<const std::uint8_t> data) {
             return unwrap_or_throw(
                 self.write(target_node, memory_address, data));
@@ -105,8 +106,8 @@ PYBIND11_MODULE(_core, m) {
           py::arg("target_node"), py::arg("memory_address"), py::arg("data"))
       .def(
           "read",
-          [](SpwRmap::SpwRmapNodeBase &self,
-             const SpwRmap::TargetNodeBase &target_node,
+          [](SpwRmap::SpwRmapNodeBase& self,
+             const SpwRmap::TargetNodeBase& target_node,
              std::uint32_t memory_address, std::span<std::uint8_t> data) {
             return unwrap_or_throw(
                 self.read(target_node, memory_address, data));
@@ -114,7 +115,7 @@ PYBIND11_MODULE(_core, m) {
           py::arg("target_node"), py::arg("memory_address"), py::arg("data"))
       .def(
           "emit_time_code",
-          [](SpwRmap::SpwRmapNodeBase &self, std::uint8_t tc) -> void {
+          [](SpwRmap::SpwRmapNodeBase& self, std::uint8_t tc) -> void {
             unwrap_or_throw(self.emitTimeCode(tc));
           },
           py::arg("timecode"));
@@ -123,18 +124,28 @@ PYBIND11_MODULE(_core, m) {
       m, "SpwRmapTCPNode")
       .def(py::init<std::string_view, uint32_t>(), py::arg("ip_address"),
            py::arg("port"))
-      .def("connect", &SpwRmap::SpwRmapTCPNode::connect)
+      .def(
+          "connect",
+          [](SpwRmap::SpwRmapTCPNode& self,
+             std::chrono::microseconds recv_timeout,
+             std::chrono::microseconds send_timeout,
+             std::chrono::microseconds connect_timeout) -> void {
+            unwrap_or_throw(
+                self.connect(recv_timeout, send_timeout, connect_timeout));
+          },
+          py::arg("recv_timeout"), py::arg("send_timeout"),
+          py::arg("connect_timeout"))
       .def(
           "set_buffer",
-          [](SpwRmap::SpwRmapTCPNode &self, size_t send_buf_size,
+          [](SpwRmap::SpwRmapTCPNode& self, size_t send_buf_size,
              size_t recv_buf_size) {
             return self.setBuffer(send_buf_size, recv_buf_size);
           },
           py::arg("send_buffer_size"), py::arg("recv_buffer_size"))
       .def(
           "write",
-          [](SpwRmap::SpwRmapTCPNode &self,
-             const SpwRmap::TargetNodeBase &target_node,
+          [](SpwRmap::SpwRmapTCPNode& self,
+             const SpwRmap::TargetNodeBase& target_node,
              std::uint32_t memory_address, std::span<const std::uint8_t> data) {
             return unwrap_or_throw(
                 self.write(target_node, memory_address, data));
@@ -142,8 +153,8 @@ PYBIND11_MODULE(_core, m) {
           py::arg("target_node"), py::arg("memory_address"), py::arg("data"))
       .def(
           "read",
-          [](SpwRmap::SpwRmapTCPNode &self,
-             const SpwRmap::TargetNodeBase &target_node,
+          [](SpwRmap::SpwRmapTCPNode& self,
+             const SpwRmap::TargetNodeBase& target_node,
              std::uint32_t memory_address, std::span<std::uint8_t> data) {
             return unwrap_or_throw(
                 self.read(target_node, memory_address, data));
@@ -151,7 +162,7 @@ PYBIND11_MODULE(_core, m) {
           py::arg("target_node"), py::arg("memory_address"), py::arg("data"))
       .def(
           "emit_time_code",
-          [](SpwRmap::SpwRmapTCPNode &self, std::uint8_t tc) -> void {
+          [](SpwRmap::SpwRmapTCPNode& self, std::uint8_t tc) -> void {
             unwrap_or_throw(self.emitTimeCode(tc));
           },
           py::arg("timecode"));
