@@ -30,10 +30,10 @@ class SpwRmapNodeBase {
   SpwRmapNodeBase(SpwRmapNodeBase&&) = delete;
   auto operator=(SpwRmapNodeBase&&) -> SpwRmapNodeBase& = delete;
 
-  /**
-   *
-   */
-  virtual auto runLoop() -> void = 0;
+  // /**
+  //  *
+  //  */
+  // virtual auto runLoop() -> void = 0;
 
   /**
    * @brief Writes data to a target node.

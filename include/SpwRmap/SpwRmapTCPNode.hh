@@ -38,8 +38,10 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
   std::string_view ip_address_;
   std::string port_;
 
-  std::pmr::vector<uint8_t> recv_buf_ = {};
-  std::pmr::vector<uint8_t> send_buf_ = {};
+  // std::pmr::vector<uint8_t> recv_buf_ = {};
+  // std::pmr::vector<uint8_t> send_buf_ = {};
+  std::vector<uint8_t> recv_buf_ = {};
+  std::vector<uint8_t> send_buf_ = {};
 
   PacketParser packet_parser_ = {};
   ReadPacketBuilder read_packet_builder_ = {};
@@ -48,13 +50,11 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
   BufferPolicy buffer_policy_ = BufferPolicy::AutoResize;
 
  public:
-  explicit SpwRmapTCPNode(SpwRmapTCPNodeConfig config,
-                          std::pmr::memory_resource* mem_res =
-                              std::pmr::get_default_resource()) noexcept
+  explicit SpwRmapTCPNode(SpwRmapTCPNodeConfig config) noexcept
       : ip_address_(config.ip_address),
         port_(std::to_string(config.port)),
-        recv_buf_(mem_res),
-        send_buf_(mem_res),
+        // recv_buf_(mem_res),
+        // send_buf_(mem_res),
         buffer_policy_(config.buffer_policy) {
     recv_buf_.resize(config.recv_buffer_size);
     send_buf_.resize(config.send_buffer_size);

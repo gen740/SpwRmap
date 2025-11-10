@@ -89,7 +89,8 @@ TEST(TcpClientServer, ServerRecieve) {
         }
       }
     } catch (const std::system_error& e) {
-      std::println("Server thread error: {}", e.what());
+      std::puts("Server thread error");
+      std::puts(e.what());
       server_emit_error = true;
     }
   });
@@ -167,7 +168,8 @@ TEST(TcpClientServer, ClientRecieve) {
         mes_size_sent += mes_size;
       }
     } catch (const std::system_error& e) {
-      std::println("Server thread error: {}", e.what());
+      std::puts("Server thread error");
+      std::puts(e.what());
       server_emit_error = true;
     }
   });
