@@ -11,7 +11,6 @@
 #include <unistd.h>
 
 #include <chrono>
-#include <print>
 #include <span>
 #include <system_error>
 
@@ -124,7 +123,7 @@ auto TCPClient::close_retry_(int fd) noexcept -> void {
 }
 
 TCPClient::~TCPClient() {
-  close_retry_(fd_);
+  disconnect();
   fd_ = -1;
 }
 
@@ -178,17 +177,19 @@ static inline auto gai_category() noexcept -> const std::error_category& {
       continue;
     }
     last = internal::set_sockopts(fd_)
-               .and_then([this, send_timeout](auto) {
+               .and_then([this, send_timeout](auto) -> auto {
                  return setSendTimeout(send_timeout);
                })
-               .and_then([this, recv_timeout](auto) {
+               .and_then([this, recv_timeout](auto) -> auto {
                  return setRecvTimeout(recv_timeout);
                })
-               .and_then([this, connect_timeout, ai](auto) {
+               .and_then([this, connect_timeout, ai](auto) -> auto {
                  return connect_with_timeout_(fd_, ai->ai_addr, ai->ai_addrlen,
                                               connect_timeout);
                });
     if (!last.has_value()) {
+      close_retry_(fd_);
+      fd_ = -1;
       continue;
     }
     break;  // success
@@ -201,7 +202,10 @@ static inline auto gai_category() noexcept -> const std::error_category& {
   return last;
 }
 
-auto TCPClient::disconnect() noexcept -> void { close_retry_(fd_); }
+auto TCPClient::disconnect() noexcept -> void {
+  close_retry_(fd_);
+  fd_ = -1;
+}
 
 auto TCPClient::reconnect(std::chrono::microseconds recv_timeout,
                           std::chrono::microseconds send_timeout,
@@ -214,10 +218,6 @@ auto TCPClient::reconnect(std::chrono::microseconds recv_timeout,
 
 auto TCPClient::setRecvTimeout(std::chrono::microseconds timeout) noexcept
     -> std::expected<std::monostate, std::error_code> {
-  if (timeout < std::chrono::microseconds::zero()) {
-    return std::unexpected{std::make_error_code(std::errc::invalid_argument)};
-  }
-
   const auto tv_sec = static_cast<time_t>(
       std::chrono::duration_cast<std::chrono::seconds>(timeout).count());
   const auto tv_usec = static_cast<suseconds_t>(timeout.count() % 1000000);
@@ -253,6 +253,10 @@ auto TCPClient::setSendTimeout(std::chrono::microseconds timeout) noexcept
 
 auto TCPClient::sendAll(std::span<const uint8_t> data) noexcept
     -> std::expected<std::monostate, std::error_code> {
+  if (fd_ < 0) {
+    return std::unexpected{std::make_error_code(std::errc::not_connected)};
+  }
+  bool retried_zero = false;
   while (!data.empty()) {
 #ifndef __APPLE__
     constexpr int kFlags = MSG_NOSIGNAL;
@@ -270,7 +274,29 @@ auto TCPClient::sendAll(std::span<const uint8_t> data) noexcept
       return std::unexpected{std::error_code(errno, std::system_category())};
     }
     if (n == 0) {
-      // Not EOF for send(); treat as transient and retry.
+      if (retried_zero) {
+        return std::unexpected{std::make_error_code(std::errc::io_error)};
+      }
+      pollfd pfd{.fd = fd_, .events = POLLOUT, .revents = 0};
+      int prc = 0;
+      do {
+        prc = ::poll(&pfd, 1, 10);
+      } while (prc < 0 && errno == EINTR);
+
+      if (prc == 0) {
+        return std::unexpected{std::make_error_code(std::errc::timed_out)};
+      }
+      if (prc < 0) {
+        return std::unexpected{std::error_code(errno, std::system_category())};
+      }
+      if (pfd.revents & (POLLERR | POLLHUP | POLLNVAL)) {
+        return std::unexpected{
+            std::make_error_code(std::errc::connection_aborted)};
+      }
+      if ((pfd.revents & POLLOUT) == 0) {
+        return std::unexpected{std::make_error_code(std::errc::io_error)};
+      }
+      retried_zero = true;
       continue;
     }
     data = data.subspan(static_cast<size_t>(n));
@@ -293,6 +319,8 @@ auto TCPClient::recvSome(std::span<uint8_t> buf) noexcept
         return std::unexpected{std::make_error_code(std::errc::timed_out)};
       }
       return std::unexpected{std::error_code(errno, std::system_category())};
+    } else if (n == 0) {
+      return std::unexpected{std::make_error_code(std::errc::io_error)};
     }
     return static_cast<size_t>(n);
   }

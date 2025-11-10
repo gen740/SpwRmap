@@ -9,6 +9,7 @@
 
 #include <cstdint>
 #include <expected>
+#include <functional>
 #include <future>
 #include <span>
 #include <system_error>
@@ -28,6 +29,11 @@ class SpwRmapNodeBase {
 
   SpwRmapNodeBase(SpwRmapNodeBase&&) = delete;
   auto operator=(SpwRmapNodeBase&&) -> SpwRmapNodeBase& = delete;
+
+  /**
+   *
+   */
+  virtual auto runLoop() -> void = 0;
 
   /**
    * @brief Writes data to a target node.
@@ -69,11 +75,13 @@ class SpwRmapNodeBase {
    */
   virtual auto writeAsync(const TargetNodeBase& target_node,
                           uint32_t memory_address,
-                          const std::span<const uint8_t> data) noexcept
+                          const std::span<const uint8_t> data,
+                          std::function<void()> onComplete) noexcept
       -> std::future<std::expected<std::monostate, std::error_code>> {
     std::ignore = target_node;
     std::ignore = memory_address;
     std::ignore = data;
+    std::ignore = onComplete;
     std::promise<std::expected<std::monostate, std::error_code>> promise;
     promise.set_value(
         std::unexpected(std::make_error_code(std::errc::not_supported)));
@@ -90,13 +98,13 @@ class SpwRmapNodeBase {
    * @param memory_address Target memory address.
    * @param data Reference to a span where the read data will be stored.
    */
-  virtual auto readAsync(const TargetNodeBase& target_node,
-                         uint32_t memory_address,
-                         const std::span<uint8_t> data) noexcept
+  virtual auto readAsync(
+      const TargetNodeBase& target_node, uint32_t memory_address,
+      std::function<void(std::span<const uint8_t>)> onComplete) noexcept
       -> std::future<std::expected<std::monostate, std::error_code>> {
     std::ignore = target_node;
     std::ignore = memory_address;
-    std::ignore = data;
+    std::ignore = onComplete;
     std::promise<std::expected<std::monostate, std::error_code>> promise;
     promise.set_value(
         std::unexpected(std::make_error_code(std::errc::not_supported)));
