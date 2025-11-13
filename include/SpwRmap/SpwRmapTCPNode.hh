@@ -4,7 +4,6 @@
 #include <cstring>
 #include <memory>
 #include <string>
-#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -23,8 +22,8 @@ enum class BufferPolicy : uint8_t {
 };
 
 struct SpwRmapTCPNodeConfig {
-  std::string_view ip_address;
-  uint32_t port;
+  std::string ip_address;  // Expect Small String optimization
+  std::string port;
   size_t send_buffer_size = 4096;
   size_t recv_buffer_size = 4096;
   BufferPolicy buffer_policy = BufferPolicy::AutoResize;
@@ -35,7 +34,7 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
   std::unique_ptr<internal::TCPClient> tcp_client_;
   std::thread worker_thread_;
 
-  std::string_view ip_address_;
+  std::string ip_address_;
   std::string port_;
 
   // std::pmr::vector<uint8_t> recv_buf_ = {};
@@ -52,7 +51,7 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
  public:
   explicit SpwRmapTCPNode(SpwRmapTCPNodeConfig config) noexcept
       : ip_address_(config.ip_address),
-        port_(std::to_string(config.port)),
+        port_(config.port),
         // recv_buf_(mem_res),
         // send_buf_(mem_res),
         buffer_policy_(config.buffer_policy) {

@@ -73,7 +73,7 @@ struct PySpwRmapTCPNodeConfig {
   std::string ip_storage;
 
   PySpwRmapTCPNodeConfig(
-      std::string ip, uint32_t port, size_t send_sz = 4096,
+      std::string ip, std::string port, size_t send_sz = 4096,
       size_t recv_sz = 4096,
       SpwRmap::BufferPolicy policy = SpwRmap::BufferPolicy::AutoResize)
       : ip_storage(std::move(ip)) {
@@ -90,8 +90,8 @@ struct PySpwRmapTCPNodeConfig {
   }
   [[nodiscard]] auto get_ip() const -> const std::string& { return ip_storage; }
 
-  void set_port(uint32_t p) { cfg.port = p; }
-  [[nodiscard]] auto get_port() const -> uint32_t { return cfg.port; }
+  void set_port(std::string p) { cfg.port = p; }
+  [[nodiscard]] auto get_port() const -> std::string { return cfg.port; }
 
   void set_send(size_t n) { cfg.send_buffer_size = n; }
   [[nodiscard]] auto get_send() const -> size_t { return cfg.send_buffer_size; }
@@ -173,8 +173,9 @@ PYBIND11_MODULE(_core, m) {
 
   py::class_<SpwRmap::SpwRmapTCPNode, SpwRmap::SpwRmapNodeBase>(
       m, "SpwRmapTCPNode")
-      .def(py::init([](const std::string& ip, uint32_t port, size_t send_sz,
-                       size_t recv_sz, SpwRmap::BufferPolicy policy)
+      .def(py::init([](const std::string& ip, const std::string& port,
+                       size_t send_sz, size_t recv_sz,
+                       SpwRmap::BufferPolicy policy)
                         -> std::unique_ptr<SpwRmap::SpwRmapTCPNode> {
              SpwRmap::SpwRmapTCPNodeConfig cfg{.ip_address = ip,
                                                .port = port,

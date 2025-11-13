@@ -53,8 +53,9 @@
       perSystem =
         { pkgs, ... }:
         {
-          devShells.default = pkgs.mkShell {
+          devShells.default = pkgs.mkShellNoCC {
             packages = [
+              pkgs.llvmPackages_21.libcxxClang
               pkgs.cmake
               pkgs.cmake-format
               pkgs.cmake-language-server
@@ -73,11 +74,12 @@
           };
 
           packages = {
-            spw_rmap = pkgs.stdenv.mkDerivation {
+            spw_rmap = pkgs.stdenvNoCC.mkDerivation {
               pname = "spw_rmap";
               version = "1.0.0";
               src = ./.;
               nativeBuildInputs = [
+                pkgs.llvmPackages_21.libcxxClang
                 pkgs.cmake
                 pkgs.ninja
                 (pkgs.python313.withPackages (

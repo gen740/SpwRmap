@@ -1,6 +1,7 @@
 #include "SpwRmap/SpwRmapTCPNode.hh"
 
 #include <algorithm>
+#include <iostream>
 
 namespace SpwRmap {
 
@@ -10,6 +11,7 @@ auto SpwRmapTCPNode::connect(std::chrono::microseconds recv_timeout,
                              std::chrono::microseconds send_timeout,
                              std::chrono::microseconds connect_timeout)
     -> std::expected<std::monostate, std::error_code> {
+  std::cout << "Connecting to " << ip_address_ << ":" << port_ << "...\n";
   tcp_client_ = std::make_unique<internal::TCPClient>(ip_address_, port_);
   auto res = tcp_client_->connect(recv_timeout, send_timeout, connect_timeout);
   if (!res.has_value()) {
@@ -303,6 +305,7 @@ auto SpwRmapTCPNode::read(const TargetNodeBase& target_node,
   send_buffer[10] = static_cast<uint8_t>((total_size >> 8) & 0xFF);
   send_buffer[11] = static_cast<uint8_t>((total_size >> 0) & 0xFF);
   auto res_send = tcp_client_->sendAll(send_buffer.first(total_size + 12));
+
   if (!res_send.has_value()) {
     return std::unexpected{res_send.error()};
   }
@@ -314,6 +317,7 @@ auto SpwRmapTCPNode::read(const TargetNodeBase& target_node,
     if (!recvRes.has_value()) {
       return std::unexpected{recvRes.error()};
     }
+
     trial_count++;
     if (trial_count >= max_trial_count) {
       return std::unexpected{std::make_error_code(std::errc::timed_out)};

@@ -256,7 +256,7 @@ auto TCPClient::sendAll(std::span<const uint8_t> data) noexcept
   if (fd_ < 0) {
     return std::unexpected{std::make_error_code(std::errc::not_connected)};
   }
-  bool retried_zero = false;
+  // bool retried_zero = false;
   while (!data.empty()) {
 #ifndef __APPLE__
     constexpr int kFlags = MSG_NOSIGNAL;
@@ -274,29 +274,29 @@ auto TCPClient::sendAll(std::span<const uint8_t> data) noexcept
       return std::unexpected{std::error_code(errno, std::system_category())};
     }
     if (n == 0) {
-      if (retried_zero) {
-        return std::unexpected{std::make_error_code(std::errc::io_error)};
-      }
-      pollfd pfd{.fd = fd_, .events = POLLOUT, .revents = 0};
-      int prc = 0;
-      do {
-        prc = ::poll(&pfd, 1, 10);
-      } while (prc < 0 && errno == EINTR);
-
-      if (prc == 0) {
-        return std::unexpected{std::make_error_code(std::errc::timed_out)};
-      }
-      if (prc < 0) {
-        return std::unexpected{std::error_code(errno, std::system_category())};
-      }
-      if (pfd.revents & (POLLERR | POLLHUP | POLLNVAL)) {
-        return std::unexpected{
-            std::make_error_code(std::errc::connection_aborted)};
-      }
-      if ((pfd.revents & POLLOUT) == 0) {
-        return std::unexpected{std::make_error_code(std::errc::io_error)};
-      }
-      retried_zero = true;
+      // if (retried_zero) {
+      //   return std::unexpected{std::make_error_code(std::errc::io_error)};
+      // }
+      // pollfd pfd{.fd = fd_, .events = POLLOUT, .revents = 0};
+      // int prc = 0;
+      // do {
+      //   prc = ::poll(&pfd, 1, 10);
+      // } while (prc < 0 && errno == EINTR);
+      //
+      // if (prc == 0) {
+      //   return std::unexpected{std::make_error_code(std::errc::timed_out)};
+      // }
+      // if (prc < 0) {
+      //   return std::unexpected{std::error_code(errno, std::system_category())};
+      // }
+      // if (pfd.revents & (POLLERR | POLLHUP | POLLNVAL)) {
+      //   return std::unexpected{
+      //       std::make_error_code(std::errc::connection_aborted)};
+      // }
+      // if ((pfd.revents & POLLOUT) == 0) {
+      //   return std::unexpected{std::make_error_code(std::errc::io_error)};
+      // }
+      // retried_zero = true;
       continue;
     }
     data = data.subspan(static_cast<size_t>(n));
@@ -319,8 +319,8 @@ auto TCPClient::recvSome(std::span<uint8_t> buf) noexcept
         return std::unexpected{std::make_error_code(std::errc::timed_out)};
       }
       return std::unexpected{std::error_code(errno, std::system_category())};
-    } else if (n == 0) {
-      return std::unexpected{std::make_error_code(std::errc::io_error)};
+    // } else if (n == 0) {
+    //   return std::unexpected{std::make_error_code(std::errc::io_error)};
     }
     return static_cast<size_t>(n);
   }
