@@ -52,8 +52,8 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
 
  public:
   explicit SpwRmapTCPNode(SpwRmapTCPNodeConfig config) noexcept
-      : ip_address_(config.ip_address),
-        port_(config.port),
+      : ip_address_(std::move(config.ip_address)),
+        port_(std::move(config.port)),
         // recv_buf_(mem_res),
         // send_buf_(mem_res),
         buffer_policy_(config.buffer_policy) {
