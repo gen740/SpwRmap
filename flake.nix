@@ -50,10 +50,16 @@
 
       perSystem =
         { pkgs, ... }:
+        let
+          llvm = pkgs.llvmPackages_21;
+          stdenvLibcxx = pkgs.overrideCC pkgs.stdenv llvm.libcxxClang;
+        in
         {
           devShells.default = pkgs.mkShellNoCC {
             packages = [
+              pkgs.llvmPackages_21.clang-tools
               pkgs.llvmPackages_21.libcxxClang
+              # pkgs.llvmPackages_21.pkgs.cmake
               pkgs.cmake
               pkgs.cmake-format
               pkgs.cmake-language-server
@@ -65,17 +71,15 @@
                   pybind11-stubgen
                 ]
               ))
-              pkgs.llvmPackages_21.clang-tools
             ];
           };
 
           packages = {
-            spw_rmap = pkgs.stdenvNoCC.mkDerivation {
+            spw_rmap = stdenvLibcxx.mkDerivation {
               pname = "spw_rmap";
               version = "1.0.0";
               src = ./.;
               nativeBuildInputs = [
-                pkgs.llvmPackages_21.libcxxClang
                 pkgs.cmake
                 pkgs.ninja
                 (pkgs.python313.withPackages (

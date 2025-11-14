@@ -15,8 +15,8 @@
 #include <system_error>
 #include <thread>
 
-#include "spw_rmap/spw_rmap.hh"
 #include "spw_rmap/testing/SpwServer.hh"
+
 
 static auto pick_free_port() -> uint16_t {
   const int fd = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -53,7 +53,7 @@ TEST(spw_rmap, WithSimpleTCPServer) {
   const std::string port_str = std::to_string(port);
 
   std::thread server_thread([&]() -> void {
-    SpwRmap::testing::SSDTP2Server server("0.0.0.0", port_str);
+    spw_rmap::testing::SSDTP2Server server("0.0.0.0", port_str);
     auto res = server.run();
     if (!res.has_value()) {
       if (res.error() == std::make_error_code(std::errc::connection_reset)) {

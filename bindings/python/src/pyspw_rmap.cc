@@ -1,5 +1,4 @@
 #include <pybind11/chrono.h>
-#include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
 #include <span>
@@ -111,31 +110,24 @@ struct PySpwRmapTCPNodeConfig {
 
 PYBIND11_MODULE(_core, m) {
   py::class_<spw_rmap::TargetNodeBase, PyTargetNodeBase>(m, "_TargetNodeBase")
-      .def(py::init<uint8_t, uint8_t>(), py::arg("logical_address") = 0x00,
-           py::arg("initiator_logical_address") = 0xFE)
+      .def(py::init<uint8_t>(), py::arg("logical_address") = 0x00)
       .def("get_target_logical_address",
            &spw_rmap::TargetNodeBase::getTargetLogicalAddress)
-      .def("get_initiator_logical_address",
-           &spw_rmap::TargetNodeBase::getInitiatorLogicalAddress)
       .def("get_target_spacewire_address",
            &spw_rmap::TargetNodeBase::getTargetSpaceWireAddress)
       .def("get_reply_address", &spw_rmap::TargetNodeBase::getReplyAddress);
 
   py::class_<spw_rmap::TargetNodeDynamic, spw_rmap::TargetNodeBase>(
       m, "TargetNode")
-      .def(py::init<uint8_t, std::vector<uint8_t>, std::vector<uint8_t>,
-                    uint8_t>(),
+      .def(py::init<uint8_t, std::vector<uint8_t>, std::vector<uint8_t>>(),
            py::arg("logical_address") = 0x00,
            py::arg("target_spacewire_address") = std::vector<uint8_t>(),
-           py::arg("reply_address") = std::vector<uint8_t>(),
-           py::arg("initiator_logical_address") = 0xFE)
+           py::arg("reply_address") = std::vector<uint8_t>())
       .def("get_target_spacewire_address",
            &spw_rmap::TargetNodeDynamic::getTargetSpaceWireAddress)
       .def("get_reply_address", &spw_rmap::TargetNodeDynamic::getReplyAddress)
       .def("get_target_logical_address",
-           &spw_rmap::TargetNodeDynamic::getTargetLogicalAddress)
-      .def("get_initiator_logical_address",
-           &spw_rmap::TargetNodeDynamic::getInitiatorLogicalAddress);
+           &spw_rmap::TargetNodeDynamic::getTargetLogicalAddress);
 
   py::class_<spw_rmap::SpwRmapNodeBase, PySpwRmapNodeBase>(m,
                                                            "_SpwRmapNodeBase")

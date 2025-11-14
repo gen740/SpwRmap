@@ -11,13 +11,10 @@ namespace spw_rmap {
 class TargetNodeBase {
  private:
   uint8_t logical_address_{};
-  uint8_t initiator_logical_address_{};
 
  public:
-  TargetNodeBase(uint8_t logical_address = 0x00,
-                 uint8_t initiator_logical_address = 0xFE) noexcept
-      : logical_address_(logical_address),
-        initiator_logical_address_(initiator_logical_address) {}
+  TargetNodeBase(uint8_t logical_address = 0x00) noexcept
+      : logical_address_(logical_address) {}
   TargetNodeBase(const TargetNodeBase&) = default;
   TargetNodeBase(TargetNodeBase&&) = default;
   auto operator=(const TargetNodeBase&) -> TargetNodeBase& = default;
@@ -26,10 +23,6 @@ class TargetNodeBase {
 
   [[nodiscard]] auto getTargetLogicalAddress() const noexcept -> uint8_t {
     return logical_address_;
-  }
-
-  [[nodiscard]] auto getInitiatorLogicalAddress() const noexcept -> uint8_t {
-    return initiator_logical_address_;
   }
 
   [[nodiscard]] virtual auto getTargetSpaceWireAddress() const noexcept
@@ -48,9 +41,8 @@ class TargetNodeFixed : public TargetNodeBase {
  public:
   TargetNodeFixed(uint8_t logical_address,
                   std::array<uint8_t, TargetLength>&& target_spacewire_address,
-                  std::array<uint8_t, ReplyLength>&& reply_address,
-                  uint8_t initiator_logical_address = 0xFE) noexcept
-      : TargetNodeBase(logical_address, initiator_logical_address),
+                  std::array<uint8_t, ReplyLength>&& reply_address) noexcept
+      : TargetNodeBase(logical_address),
         target_spacewire_address(std::move(target_spacewire_address)),
         reply_address(std::move(reply_address)) {}
 
@@ -73,9 +65,8 @@ class TargetNodeDynamic : public TargetNodeBase {
  public:
   TargetNodeDynamic(uint8_t logical_address,
                     std::vector<uint8_t>&& target_spacewire_address,
-                    std::vector<uint8_t>&& reply_address,
-                    uint8_t initiator_logical_address = 0xFE) noexcept
-      : TargetNodeBase(logical_address, initiator_logical_address),
+                    std::vector<uint8_t>&& reply_address) noexcept
+      : TargetNodeBase(logical_address),
         target_spacewire_address(std::move(target_spacewire_address)),
         reply_address(std::move(reply_address)) {}
 

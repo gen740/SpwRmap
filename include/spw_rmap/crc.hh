@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE file for details.
 #pragma once
 
+#include <cstdint>
 #include <span>
 
 namespace spw_rmap::crc {

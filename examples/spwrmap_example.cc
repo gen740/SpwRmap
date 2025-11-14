@@ -19,7 +19,7 @@ auto main() -> int {
     return 1;
   }
   auto target = spw_rmap::TargetNodeDynamic(0x32, std::vector<uint8_t>{2},
-                                            std::vector<uint8_t>{3}, 0xFE);
+                                            std::vector<uint8_t>{3});
 
   std::vector<uint8_t> buf = {};
   buf.resize(4);
