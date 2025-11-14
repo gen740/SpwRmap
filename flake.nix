@@ -2,8 +2,7 @@
   description = "Flake shell";
 
   inputs = {
-    # nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    nixpkgs.url = "github:NixOS/nixpkgs/release-25.05";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
   };
 
@@ -66,9 +65,7 @@
                   pybind11-stubgen
                 ]
               ))
-              pkgs.python313Packages.pybind11
               pkgs.llvmPackages_21.clang-tools
-              # pkgs.python313Packages.venvShellHook
             ];
           };
 
