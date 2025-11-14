@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <memory_resource>
 #include <string>
 #include <thread>
 #include <vector>
@@ -39,10 +40,10 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
   std::string ip_address_;
   std::string port_;
 
-  // std::pmr::vector<uint8_t> recv_buf_ = {};
-  // std::pmr::vector<uint8_t> send_buf_ = {};
-  std::vector<uint8_t> recv_buf_ = {};
-  std::vector<uint8_t> send_buf_ = {};
+  std::pmr::vector<uint8_t> recv_buf_ = {};
+  std::pmr::vector<uint8_t> send_buf_ = {};
+  // std::vector<uint8_t> recv_buf_ = {};
+  // std::vector<uint8_t> send_buf_ = {};
 
   PacketParser packet_parser_ = {};
   ReadPacketBuilder read_packet_builder_ = {};

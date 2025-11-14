@@ -52,7 +52,7 @@
         { pkgs, ... }:
         let
           llvm = pkgs.llvmPackages_21;
-          stdenvLibcxx = pkgs.overrideCC pkgs.stdenv llvm.libcxxClang;
+          stdenvLLVM21 = pkgs.overrideCC pkgs.stdenv llvm.clang;
         in
         {
           devShells.default = pkgs.mkShellNoCC {
@@ -75,7 +75,7 @@
           };
 
           packages = {
-            spw_rmap = stdenvLibcxx.mkDerivation {
+            spw_rmap = stdenvLLVM21.mkDerivation {
               pname = "spw_rmap";
               version = "1.0.0";
               src = ./.;

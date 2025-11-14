@@ -6,7 +6,7 @@
 
 namespace spw_rmap {
 
-static constexpr uint8_t RMAPProtocolIdentifier = 0x01;
+inline constexpr uint8_t RMAPProtocolIdentifier = 0x01;
 
 enum class RMAPPacketType : uint8_t {
   Command = 0b01000000,

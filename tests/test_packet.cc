@@ -41,7 +41,7 @@ auto random_byte() {
 auto random_bus_length() {
   static std::random_device rd;
   static std::mt19937 gen(rd());
-  return std::uniform_int_distribution<size_t>(1, 16)(gen);
+  return std::uniform_int_distribution<size_t>(0, 12)(gen);
 }
 
 using ::testing::Eq;
@@ -66,7 +66,7 @@ auto SpanEqual(std::span<const T> a, std::span<const T> b)
 TEST(spw_rmap, ReadPacket) {
   using namespace spw_rmap;
 
-  for (int i = 0; i < 30; ++i) {
+  for (int i = 0; i < 1000; ++i) {
     std::vector<uint8_t> target_address;
     std::vector<uint8_t> reply_address;
 
@@ -120,7 +120,7 @@ TEST(spw_rmap, ReadPacket) {
 TEST(spw_rmap, ReadReplyPacket) {
   using namespace spw_rmap;
 
-  for (int i = 0; i < 30; ++i) {
+  for (int i = 0; i < 1000; ++i) {
     std::vector<uint8_t> target_address;
     std::vector<uint8_t> reply_address;
 
@@ -172,7 +172,7 @@ TEST(spw_rmap, ReadReplyPacket) {
 TEST(spw_rmap, WritePacket) {
   using namespace spw_rmap;
 
-  for (int i = 0; i < 30; ++i) {
+  for (int i = 0; i < 1000; ++i) {
     std::vector<uint8_t> target_address;
     std::vector<uint8_t> reply_address;
 
@@ -232,7 +232,7 @@ TEST(spw_rmap, WritePacket) {
 TEST(spw_rmap, WriteReplyPacket) {
   using namespace spw_rmap;
 
-  for (int i = 0; i < 30; ++i) {
+  for (int i = 0; i < 1000; ++i) {
     std::vector<uint8_t> target_address;
     std::vector<uint8_t> reply_address;
 
