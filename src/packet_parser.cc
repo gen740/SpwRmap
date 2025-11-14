@@ -1,11 +1,11 @@
-#include "SpwRmap/PacketParser.hh"
+#include "spw_rmap/packet_parser.hh"
 
 #include <utility>
 
-#include "SpwRmap/CRC.hh"
-#include "SpwRmap/RMAPPacketType.hh"
+#include "spw_rmap/crc.hh"
+#include "spw_rmap/rmap_packet_type.hh"
 
-namespace SpwRmap {
+namespace spw_rmap {
 
 auto PacketParser::parseReadPacket(
     const std::span<const uint8_t> packet) noexcept -> Status {
@@ -15,7 +15,7 @@ auto PacketParser::parseReadPacket(
   if (packet.size() != 16 + replyAddressSize) {
     return Status::IncompletePacket;
   }
-  if (CRC::calcCRC(packet.subspan(0, 16 + replyAddressSize)) != 0x00) {
+  if (crc::calcCRC(packet.subspan(0, 16 + replyAddressSize)) != 0x00) {
     return Status::HeaderCRCError;
   }
   packet_.targetLogicalAddress = packet[head++];
@@ -62,7 +62,7 @@ auto PacketParser::parseReadReplyPacket(
   if (packet.size() < 12) {
     return Status::IncompletePacket;
   }
-  if (CRC::calcCRC(packet.subspan(0, 12)) != 0x00) {
+  if (crc::calcCRC(packet.subspan(0, 12)) != 0x00) {
     return Status::HeaderCRCError;
   }
   packet_.initiatorLogicalAddress = packet[head++];
@@ -83,7 +83,7 @@ auto PacketParser::parseReadReplyPacket(
   if (packet.size() != 12 + packet_.dataLength + 1) {
     return Status::IncompletePacket;
   }
-  if (CRC::calcCRC(packet.subspan(12, packet_.dataLength + 1)) != 0x00) {
+  if (crc::calcCRC(packet.subspan(12, packet_.dataLength + 1)) != 0x00) {
     return Status::DataCRCError;
   }
   head++;  // Skip CRC byte
@@ -104,7 +104,7 @@ auto PacketParser::parseWritePacket(
   if (packet.size() <= 16 + replyAddressSize) {
     return Status::IncompletePacket;
   }
-  if (CRC::calcCRC(packet.subspan(0, 16 + replyAddressSize)) != 0x00) {
+  if (crc::calcCRC(packet.subspan(0, 16 + replyAddressSize)) != 0x00) {
     return Status::HeaderCRCError;
   }
   packet_.targetLogicalAddress = packet[head++];
@@ -143,7 +143,7 @@ auto PacketParser::parseWritePacket(
   if (packet.size() != 16 + replyAddressSize + packet_.dataLength + 1) {
     return Status::IncompletePacket;
   }
-  if (CRC::calcCRC(packet.subspan(16 + replyAddressSize,
+  if (crc::calcCRC(packet.subspan(16 + replyAddressSize,
                                   packet_.dataLength + 1)) != 0x00) {
     return Status::DataCRCError;
   }
@@ -158,7 +158,7 @@ auto PacketParser::parseWriteReplyPacket(
   if (packet.size() != 8) {
     return Status::IncompletePacket;
   }
-  if (CRC::calcCRC(packet.subspan(0, 8)) != 0x00) {
+  if (crc::calcCRC(packet.subspan(0, 8)) != 0x00) {
     return Status::HeaderCRCError;
   }
   packet_.initiatorLogicalAddress = packet[head++];
@@ -215,4 +215,4 @@ auto PacketParser::parse(const std::span<const uint8_t> packet) noexcept
   }
 }
 
-}  // namespace SpwRmap
+}  // namespace spw_rmap

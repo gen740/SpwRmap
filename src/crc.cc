@@ -1,7 +1,11 @@
-#include <SpwRmap/CRC.hh>
-#include <array>
+// Copyright (c) 2025 Gen
+// Licensed under the MIT License. See LICENSE file for details.
 
-namespace SpwRmap::CRC {
+#include <array>
+#include <cstddef>
+#include <spw_rmap/crc.hh>
+
+namespace spw_rmap::crc {
 
 constexpr std::array<uint8_t, 256> CRC_LOOKUP_TABLE = {
     0x00, 0x91, 0xe3, 0x72, 0x07, 0x96, 0xe4, 0x75,  //
@@ -48,4 +52,4 @@ auto calcCRC(std::span<const uint8_t> data, uint8_t crc) noexcept -> uint8_t {
   return crc;
 }
 
-}  // namespace SpwRmap::CRC
+}  // namespace spw_rmap::crc

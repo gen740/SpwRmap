@@ -1,12 +1,12 @@
-find_package(pybind11 CONFIG REQUIRED)
 find_package(
   Python3
-  COMPONENTS Interpreter
+  COMPONENTS Interpreter Development
   REQUIRED)
+find_package(pybind11 CONFIG REQUIRED)
 
 pybind11_add_module(pyspw_rmap MODULE src/pyspw_rmap.cc)
 target_compile_features(pyspw_rmap PRIVATE cxx_std_23)
-target_link_libraries(pyspw_rmap PRIVATE ${PROJECT_NAME})
+target_link_libraries(pyspw_rmap PUBLIC ${PROJECT_NAME})
 
 set(PYSPW_RMAP_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/pyspw_rmap")
 

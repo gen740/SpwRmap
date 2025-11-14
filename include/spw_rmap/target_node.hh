@@ -1,16 +1,12 @@
-/**
- * @file TargetNode.hh
- * @brief Defines the TargetNode struct.
- * @date 2025-03-01
- * @author gen740
- */
+// Copyright (c) 2025 Gen
+// Licensed under the MIT License. See LICENSE file for details.
 #pragma once
 
 #include <cstdint>
 #include <span>
 #include <vector>
 
-namespace SpwRmap {
+namespace spw_rmap {
 
 class TargetNodeBase {
  private:
@@ -94,4 +90,4 @@ class TargetNodeDynamic : public TargetNodeBase {
   };
 };
 
-};  // namespace SpwRmap
+};  // namespace spw_rmap

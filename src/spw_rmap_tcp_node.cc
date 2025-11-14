@@ -1,9 +1,9 @@
-#include "SpwRmap/SpwRmapTCPNode.hh"
+#include "spw_rmap/spw_rmap_tcp_node.hh"
 
 #include <algorithm>
 #include <iostream>
 
-namespace SpwRmap {
+namespace spw_rmap {
 
 using namespace std::chrono_literals;
 
@@ -350,4 +350,4 @@ auto SpwRmapTCPNode::emitTimeCode(uint8_t timecode) noexcept
   return tcp_client_->sendAll(packet);
 }
 
-}  // namespace SpwRmap
+}  // namespace spw_rmap

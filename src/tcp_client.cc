@@ -1,4 +1,4 @@
-#include "SpwRmap/internal/TCPClient.hh"
+#include "spw_rmap/internal/tcp_client.hh"
 
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -14,7 +14,7 @@
 #include <span>
 #include <system_error>
 
-namespace SpwRmap::internal {
+namespace spw_rmap::internal {
 
 using namespace std::chrono_literals;
 
@@ -287,7 +287,8 @@ auto TCPClient::sendAll(std::span<const uint8_t> data) noexcept
       //   return std::unexpected{std::make_error_code(std::errc::timed_out)};
       // }
       // if (prc < 0) {
-      //   return std::unexpected{std::error_code(errno, std::system_category())};
+      //   return std::unexpected{std::error_code(errno,
+      //   std::system_category())};
       // }
       // if (pfd.revents & (POLLERR | POLLHUP | POLLNVAL)) {
       //   return std::unexpected{
@@ -319,11 +320,11 @@ auto TCPClient::recvSome(std::span<uint8_t> buf) noexcept
         return std::unexpected{std::make_error_code(std::errc::timed_out)};
       }
       return std::unexpected{std::error_code(errno, std::system_category())};
-    // } else if (n == 0) {
-    //   return std::unexpected{std::make_error_code(std::errc::io_error)};
+      // } else if (n == 0) {
+      //   return std::unexpected{std::make_error_code(std::errc::io_error)};
     }
     return static_cast<size_t>(n);
   }
 }
 
-}  // namespace SpwRmap::internal
+}  // namespace spw_rmap::internal

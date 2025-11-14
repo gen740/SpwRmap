@@ -1,3 +1,5 @@
+// Copyright (c) 2025 Gen
+// Licensed under the MIT License. See LICENSE file for details.
 #pragma once
 
 #include <cassert>
@@ -6,7 +8,7 @@
 #include <span>
 #include <system_error>
 
-namespace SpwRmap {
+namespace spw_rmap {
 
 /**
  * @class PacketBuilderBase
@@ -23,6 +25,9 @@ class PacketBuilderBase {
   virtual ~PacketBuilderBase() = default;
   explicit PacketBuilderBase() noexcept = default;
 
+  /**
+   * @brief Delete copy and move constructors and assignment operators.
+   */
   PacketBuilderBase(const PacketBuilderBase&) = delete;
   auto operator=(const PacketBuilderBase&) -> PacketBuilderBase& = delete;
   PacketBuilderBase(PacketBuilderBase&&) = delete;
@@ -32,7 +37,7 @@ class PacketBuilderBase {
    * @brief Calculate the total size of the packet based on the configuration.
    *
    * @param config The configuration object containing parameters for the
-   * packet.
+   *        packet.
    * @return size_t The total size of the packet.
    */
   [[nodiscard]] virtual auto getTotalSize(const ConfigT& config) const noexcept
@@ -166,4 +171,4 @@ class ReadReplyPacketBuilder final
       -> std::expected<size_t, std::error_code> final;
 };
 
-};  // namespace SpwRmap
+};  // namespace spw_rmap

@@ -2,7 +2,8 @@
   description = "Flake shell";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    # nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/release-25.05";
     flake-parts.url = "github:hercules-ci/flake-parts";
   };
 
@@ -27,20 +28,18 @@
               version = "0.0.1";
               format = "pyproject";
               src = ./.;
-
               nativeBuildInputs =
                 (with python-final; [
                   scikit-build-core
                   pybind11
+                  pybind11-protobuf
                   pybind11-stubgen
                   wheel
                 ])
                 ++ (with final; [
                   cmake
                   ninja
-                ])
-                ++ [
-                ];
+                ]);
               pythonImportsCheck = [ "pyspw_rmap" ];
               dontUseCmakeConfigure = true;
               dontUseCmakeBuild = true;
@@ -59,7 +58,6 @@
               pkgs.cmake
               pkgs.cmake-format
               pkgs.cmake-language-server
-              pkgs.clang-tools
               pkgs.ninja
               pkgs.gtest
               (pkgs.python313.withPackages (
@@ -68,9 +66,10 @@
                   pybind11-stubgen
                 ]
               ))
-              pkgs.python313Packages.venvShellHook
+              pkgs.python313Packages.pybind11
+              pkgs.llvmPackages_21.clang-tools
+              # pkgs.python313Packages.venvShellHook
             ];
-            venvDir = ".venv";
           };
 
           packages = {
@@ -95,7 +94,7 @@
                 "-DSPWRMAP_BUILD_TESTS=ON"
               ];
               buildInputs = [
-                pkgs.gtest
+                pkgs.gtest.dev
               ];
               doCheck = true;
             };

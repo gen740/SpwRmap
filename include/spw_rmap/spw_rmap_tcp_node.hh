@@ -1,3 +1,5 @@
+// Copyright (c) 2025 Gen
+// Licensed under the MIT License. See LICENSE file for details.
 #pragma once
 
 #include <cstdint>
@@ -7,12 +9,12 @@
 #include <thread>
 #include <vector>
 
-#include "SpwRmap/PacketBuilder.hh"
-#include "SpwRmap/PacketParser.hh"
-#include "SpwRmap/SpwRmapNodeBase.hh"
-#include "SpwRmap/internal/TCPClient.hh"
+#include "spw_rmap/internal/tcp_client.hh"
+#include "spw_rmap/packet_builder.hh"
+#include "spw_rmap/packet_parser.hh"
+#include "spw_rmap/spw_rmap_node_base.hh"
 
-namespace SpwRmap {
+namespace spw_rmap {
 
 using namespace std::chrono_literals;
 
@@ -91,4 +93,4 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
       -> std::expected<std::monostate, std::error_code> override;
 };
 
-};  // namespace SpwRmap
+};  // namespace spw_rmap

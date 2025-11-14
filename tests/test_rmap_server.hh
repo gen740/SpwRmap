@@ -15,8 +15,8 @@
 #include <system_error>
 #include <thread>
 
-#include "SpwRmap/SpwRmap.hh"
-#include "SpwRmap/testing/SpwServer.hh"
+#include "spw_rmap/spw_rmap.hh"
+#include "spw_rmap/testing/SpwServer.hh"
 
 static auto pick_free_port() -> uint16_t {
   const int fd = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -48,7 +48,7 @@ static auto pick_free_port() -> uint16_t {
   return port;
 }
 
-TEST(SpwRmap, WithSimpleTCPServer) {
+TEST(spw_rmap, WithSimpleTCPServer) {
   const uint16_t port = pick_free_port();
   const std::string port_str = std::to_string(port);
 
@@ -64,7 +64,7 @@ TEST(SpwRmap, WithSimpleTCPServer) {
     }
   });
 
-  SpwRmap::SpwRmap rmap("localhost", port);
+  spw_rmap::SpwRmap rmap("localhost", port);
 
   std::array<uint8_t, 1024> send_buffer{};
   std::array<uint8_t, 1024> recv_buffer{};

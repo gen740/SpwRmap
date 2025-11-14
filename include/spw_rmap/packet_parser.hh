@@ -1,10 +1,12 @@
+// Copyright (c) 2025 Gen
+// Licensed under the MIT License. See LICENSE file for details.
 #pragma once
 
 #include <cstdint>
 #include <span>
 #include <system_error>
 
-namespace SpwRmap {
+namespace spw_rmap {
 
 enum class PacketType {
   Undefined = 0,
@@ -121,10 +123,10 @@ inline auto make_error_code(PacketParser::Status e) noexcept
   return {static_cast<int>(e), status_code_category()};
 }
 
-};  // namespace SpwRmap
+};  // namespace spw_rmap
 
 namespace std {
 template <>
-struct is_error_code_enum<SpwRmap::PacketParser::Status> : true_type {};
+struct is_error_code_enum<spw_rmap::PacketParser::Status> : true_type {};
 
 }  // namespace std

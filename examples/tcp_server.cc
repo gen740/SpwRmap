@@ -1,12 +1,12 @@
-#include <SpwRmap/internal/TCPServer.hh>
 #include <chrono>
 #include <print>
+#include <spw_rmap/internal/tcp_server.hh>
 #include <vector>
 
 using namespace std::chrono_literals;
 
 auto main() -> int {
-  auto server = SpwRmap::internal::TCPServer("0.0.0.0", "10032");
+  auto server = spw_rmap::internal::TCPServer("0.0.0.0", "10032");
   {
     auto res = server.accept_once(500ms, 500ms);
     if (!res.has_value()) {

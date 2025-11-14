@@ -1,8 +1,10 @@
+// Copyright (c) 2025 Gen
+// Licensed under the MIT License. See LICENSE file for details.
 #pragma once
 
 #include <cstdint>
 
-namespace SpwRmap {
+namespace spw_rmap {
 
 static constexpr uint8_t RMAPProtocolIdentifier = 0x01;
 
@@ -18,4 +20,4 @@ enum class RMAPCommandCode : uint8_t {
   IncrementAddress = 0b00000100,       // Incremental address operation
 };
 
-}  // namespace SpwRmap
+}  // namespace spw_rmap

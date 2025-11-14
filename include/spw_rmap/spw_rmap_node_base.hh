@@ -1,10 +1,5 @@
-/**
- * @file SpwRmapBase.hh
- * @brief Base class for SpaceWire RMAP communication
- * @date 2025-03-01
- * @author gen740
- */
-
+// Copyright (c) 2025 Gen
+// Licensed under the MIT License. See LICENSE file for details.
 #pragma once
 
 #include <cstdint>
@@ -15,9 +10,9 @@
 #include <system_error>
 #include <variant>
 
-#include "SpwRmap/TargetNode.hh"
+#include "spw_rmap/target_node.hh"
 
-namespace SpwRmap {
+namespace spw_rmap {
 
 class SpwRmapNodeBase {
  public:
@@ -122,4 +117,4 @@ class SpwRmapNodeBase {
       -> std::expected<std::monostate, std::error_code> = 0;
 };
 
-}  // namespace SpwRmap
+}  // namespace spw_rmap

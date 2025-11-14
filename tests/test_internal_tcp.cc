@@ -2,9 +2,8 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <sys/socket.h>
+#include <unistd.h>
 
-#include <SpwRmap/internal/TCPClient.hh>
-#include <SpwRmap/internal/TCPServer.hh>
 #include <atomic>
 #include <chrono>
 #include <cstdint>
@@ -12,12 +11,14 @@
 #include <print>
 #include <random>
 #include <span>
+#include <spw_rmap/internal/tcp_client.hh>
+#include <spw_rmap/internal/tcp_server.hh>
 #include <string>
 #include <thread>
 #include <vector>
 
-using SpwRmap::internal::TCPClient;
-using SpwRmap::internal::TCPServer;
+using spw_rmap::internal::TCPClient;
+using spw_rmap::internal::TCPServer;
 
 using namespace std::chrono_literals;
 

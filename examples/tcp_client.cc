@@ -1,11 +1,11 @@
-#include <SpwRmap/internal/TCPClient.hh>
 #include <print>
+#include <spw_rmap/internal/tcp_client.hh>
 #include <vector>
 
 using namespace std::chrono_literals;
 
 auto main() -> int {
-  auto client = SpwRmap::internal::TCPClient("localhost", "10032");
+  auto client = spw_rmap::internal::TCPClient("localhost", "10032");
   auto res = client.connect(500ms, 500ms, 500ms);
   if (!res.has_value()) {
     std::println("Failed to connect to the server. Error: {}",

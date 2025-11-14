@@ -1,3 +1,5 @@
+// Copyright (c) 2025 Gen
+// Licensed under the MIT License. See LICENSE file for details.
 #pragma once
 
 #include <chrono>
@@ -5,7 +7,7 @@
 #include <expected>
 #include <span>
 
-namespace SpwRmap::internal {
+namespace spw_rmap::internal {
 
 using namespace std::chrono_literals;
 
@@ -47,4 +49,4 @@ class TCPServer {
       -> std::expected<size_t, std::error_code>;
 };
 
-}  // namespace SpwRmap::internal
+}  // namespace spw_rmap::internal

@@ -1,13 +1,12 @@
-
-#include <SpwRmap/SpwRmapTCPNode.hh>
 #include <chrono>
 #include <iostream>
+#include <spw_rmap/spw_rmap_tcp_node.hh>
 
-#include "SpwRmap/TargetNode.hh"
+#include "spw_rmap/target_node.hh"
 
 auto main() -> int {
-  auto spw =
-      SpwRmap::SpwRmapTCPNode({.ip_address = "192.168.1.100", .port = "10030"});
+  auto spw = spw_rmap::SpwRmapTCPNode(
+      {.ip_address = "192.168.1.100", .port = "10030"});
   spw.setInitiatorLogicalAddress(0xFE);
   auto res_con = spw.connect(std::chrono::microseconds(1000000),
                              std::chrono::microseconds(1000000),
@@ -19,8 +18,8 @@ auto main() -> int {
     std::cerr << "Connection error: " << res_con.error().message() << std::endl;
     return 1;
   }
-  auto target = SpwRmap::TargetNodeDynamic(0x32, std::vector<uint8_t>{2},
-                                           std::vector<uint8_t>{3}, 0xFE);
+  auto target = spw_rmap::TargetNodeDynamic(0x32, std::vector<uint8_t>{2},
+                                            std::vector<uint8_t>{3}, 0xFE);
 
   std::vector<uint8_t> buf = {};
   buf.resize(4);

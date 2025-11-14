@@ -1,1 +1,0 @@
-../../../build/bindings/python/pyspw_rmap/_core.pyi

@@ -1,17 +1,18 @@
-#include "SpwRmap/PacketBuilder.hh"
+// Copyright (c) 2025 Gen
+// Licensed under the MIT License. See LICENSE file for details.
+#include "spw_rmap/packet_builder.hh"
 
 #include <cassert>
 #include <utility>
 
-#include "SpwRmap/CRC.hh"
-#include "SpwRmap/RMAPPacketType.hh"
+#include "spw_rmap/crc.hh"
+#include "spw_rmap/rmap_packet_type.hh"
 
-namespace SpwRmap {
+namespace spw_rmap {
 
 auto ReadPacketBuilder::getTotalSize(
     const ReadPacketConfig& config) const noexcept -> size_t {
-  return config.targetSpaceWireAddress.size() +
-         4 +  // Target SpaceWire address, target logical address, protocol ID
+  return config.targetSpaceWireAddress.size() + 4 +
          ((config.replyAddress.size() + 3) / 4 * 4) +  // Reply address
          12;
 }
@@ -27,23 +28,20 @@ auto ReadPacketBuilder::build(const ReadPacketConfig& config,
     out[head++] = byte;
   }
   out[head++] = (config.targetLogicalAddress);
-  out[head++] = (RMAPProtocolIdentifier);  // Protocol Identifier
+  out[head++] = (RMAPProtocolIdentifier);
   auto replyAddressSize = config.replyAddress.size();
-  {  // Instruction field
-    uint8_t instruction = 0;
-    instruction |= std::to_underlying(RMAPPacketType::Command);
-    instruction |= std::to_underlying(RMAPCommandCode::Reply);
-    if (config.incrementMode) {
-      instruction |= std::to_underlying(RMAPCommandCode::IncrementAddress);
-    }
-    if (replyAddressSize != 0) {
-      assert(replyAddressSize <= 12);
-      replyAddressSize =
-          ((replyAddressSize - 1) & 0x0C) + 0x04;  // Convert to 4-byte words
-      instruction |= (replyAddressSize >> 2);
-    }
-    out[head++] = (instruction);
+  uint8_t instruction = 0;
+  instruction |= std::to_underlying(RMAPPacketType::Command);
+  instruction |= std::to_underlying(RMAPCommandCode::Reply);
+  if (config.incrementMode) {
+    instruction |= std::to_underlying(RMAPCommandCode::IncrementAddress);
   }
+  if (replyAddressSize != 0) {
+    assert(replyAddressSize <= 12);
+    replyAddressSize = ((replyAddressSize - 1) & 0x0C) + 0x04;
+    instruction |= (replyAddressSize >> 2);
+  }
+  out[head++] = (instruction);
   out[head++] = (config.key);
   if (replyAddressSize != 0) {
     for (size_t i = 0; i < replyAddressSize - config.replyAddress.size(); ++i) {
@@ -64,7 +62,7 @@ auto ReadPacketBuilder::build(const ReadPacketConfig& config,
   out[head++] = (static_cast<uint8_t>((config.dataLength >> 16) & 0xFF));
   out[head++] = (static_cast<uint8_t>((config.dataLength >> 8) & 0xFF));
   out[head++] = (static_cast<uint8_t>((config.dataLength >> 0) & 0xFF));
-  auto crc = CRC::calcCRC(
+  auto crc = crc::calcCRC(
       std::span(out).subspan(config.targetSpaceWireAddress.size(),
                              head - config.targetSpaceWireAddress.size()));
   out[head++] = (crc);
@@ -135,7 +133,7 @@ auto WritePacketBuilder::build(const WritePacketConfig& config,
   out[head++] = (static_cast<uint8_t>((dataLength >> 8) & 0xFF));
   out[head++] = (static_cast<uint8_t>((dataLength >> 0) & 0xFF));
 
-  auto crc = CRC::calcCRC(
+  auto crc = crc::calcCRC(
       std::span(out).subspan(config.targetSpaceWireAddress.size(),
                              head - config.targetSpaceWireAddress.size()));
   out[head++] = (crc);
@@ -144,7 +142,7 @@ auto WritePacketBuilder::build(const WritePacketConfig& config,
   for (const auto& byte : config.data) {
     out[head++] = (byte);
   }
-  auto data_crc = CRC::calcCRC(std::span(config.data));
+  auto data_crc = crc::calcCRC(std::span(config.data));
   out[head++] = (data_crc);
   return head;
 };
@@ -183,7 +181,7 @@ auto WriteReplyPacketBuilder::build(const WriteReplyPacketConfig& config,
   out[head++] = (config.targetLogicalAddress);
   out[head++] = (static_cast<uint8_t>(config.transactionID >> 8));
   out[head++] = (static_cast<uint8_t>(config.transactionID & 0xFF));
-  auto crc = CRC::calcCRC(std::span(out).subspan(
+  auto crc = crc::calcCRC(std::span(out).subspan(
       config.replyAddress.size(), head - config.replyAddress.size()));
   out[head++] = (crc);
   return head;
@@ -224,7 +222,7 @@ auto ReadReplyPacketBuilder::build(const ReadReplyPacketConfig& config,
   out[head++] = (static_cast<uint8_t>((dataLength >> 16) & 0xFF));
   out[head++] = (static_cast<uint8_t>((dataLength >> 8) & 0xFF));
   out[head++] = (static_cast<uint8_t>((dataLength >> 0) & 0xFF));
-  auto crc = CRC::calcCRC(std::span(out).subspan(
+  auto crc = crc::calcCRC(std::span(out).subspan(
       config.replyAddress.size(), head - config.replyAddress.size()));
   out[head++] = (crc);
 
@@ -232,9 +230,9 @@ auto ReadReplyPacketBuilder::build(const ReadReplyPacketConfig& config,
   for (const auto& byte : config.data) {
     out[head++] = (byte);
   }
-  auto data_crc = CRC::calcCRC(std::span(config.data));
+  auto data_crc = crc::calcCRC(std::span(config.data));
   out[head++] = (data_crc);
   return head;
 };
 
-}  // namespace SpwRmap
+}  // namespace spw_rmap
