@@ -86,12 +86,7 @@ auto PacketParser::parseReadReplyPacket(
   if (crc::calcCRC(packet.subspan(12, packet_.dataLength + 1)) != 0x00) {
     return Status::DataCRCError;
   }
-  head++;  // Skip CRC byte
-  // packet_.data.clear();
-  // packet_.data.reserve(packet_.dataLength);
-  // for (size_t i = 0; i < packet_.dataLength; ++i) {
-  //   packet_.data.push_back(packet[head++]);
-  // }
+  head++;
   packet_.data =
       std::span<const uint8_t>(packet).subspan(head, packet_.dataLength);
   return Status::Success;
@@ -184,8 +179,6 @@ auto PacketParser::parse(const std::span<const uint8_t> packet) noexcept
       return Status::IncompletePacket;
     }
   }
-  packet_.targetSpaceWireAddress =
-      std::span<const uint8_t>(packet).subspan(0, head);
 
   // Check size
   if (packet.size() - head < 4) {
@@ -200,15 +193,21 @@ auto PacketParser::parse(const std::span<const uint8_t> packet) noexcept
   switch (is_command << 1 | is_write) {
     case 0b00:  // Read reply
       packet_.type = PacketType::ReadReply;
+      packet_.replyAddress = std::span<const uint8_t>(packet).subspan(0, head);
       return parseReadReplyPacket(packet.subspan(head));
     case 0b01:  // Write reply
       packet_.type = PacketType::WriteReply;
+      packet_.replyAddress = std::span<const uint8_t>(packet).subspan(0, head);
       return parseWriteReplyPacket(packet.subspan(head));
     case 0b10:  // Read command
       packet_.type = PacketType::Read;
+      packet_.targetSpaceWireAddress =
+          std::span<const uint8_t>(packet).subspan(0, head);
       return parseReadPacket(packet.subspan(head));
     case 0b11:  // Write command
       packet_.type = PacketType::Write;
+      packet_.targetSpaceWireAddress =
+          std::span<const uint8_t>(packet).subspan(0, head);
       return parseWritePacket(packet.subspan(head));
     default:
       std::unreachable();
