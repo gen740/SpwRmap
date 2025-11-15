@@ -138,10 +138,10 @@ auto TCPServer::accept_once(std::chrono::microseconds send_timeout,
     }
 
     last = internal::server_set_sockopts(client_fd_)
-               .and_then([this, send_timeout](auto) {
+               .and_then([this, send_timeout](auto) -> auto {
                  return setSendTimeout(send_timeout);
                })
-               .and_then([this, recv_timeout](auto) {
+               .and_then([this, recv_timeout](auto) -> auto {
                  return setRecvTimeout(recv_timeout);
                })
                .or_else([this](const auto& ec)

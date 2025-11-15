@@ -35,6 +35,16 @@ struct PySpwRmapNodeBase : public spw_rmap::SpwRmapNodeBase {
     PYBIND11_OVERRIDE_PURE(void, spw_rmap::SpwRmapNodeBase, runLoop);
   }
 
+  auto registerOnWrite(std::function<void(spw_rmap::Packet)>) noexcept
+      -> void override {
+    PYBIND11_OVERRIDE_PURE(void, spw_rmap::SpwRmapNodeBase, registerOnWrite);
+  }
+
+  auto registerOnRead(std::function<void(spw_rmap::Packet)>) noexcept
+      -> void override {
+    PYBIND11_OVERRIDE_PURE(void, spw_rmap::SpwRmapNodeBase, registerOnRead);
+  }
+
   [[nodiscard]] auto write(std::shared_ptr<spw_rmap::TargetNodeBase>, uint32_t,
                            const std::span<const uint8_t>) noexcept
       -> std::expected<std::monostate, std::error_code> override {

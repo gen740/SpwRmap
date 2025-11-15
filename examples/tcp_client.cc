@@ -1,10 +1,13 @@
+#include <iostream>
 #include <print>
 #include <spw_rmap/internal/tcp_client.hh>
+#include <thread>
 #include <vector>
 
 using namespace std::chrono_literals;
 
 auto main() -> int {
+  std::cout << "hi";
   auto client = spw_rmap::internal::TCPClient("localhost", "10032");
   auto res = client.connect(500ms, 500ms, 500ms);
   if (!res.has_value()) {
@@ -23,6 +26,8 @@ auto main() -> int {
   buffer[1] = 0x02;
   buffer[2] = 0x03;
   buffer[3] = 0x04;
+
+  std::this_thread::sleep_for(1000ms);
 
   res = client.sendAll(std::span<const uint8_t>(buffer.data(), 4));
   if (!res.has_value()) {

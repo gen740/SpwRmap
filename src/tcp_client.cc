@@ -11,6 +11,7 @@
 #include <unistd.h>
 
 #include <chrono>
+#include <iostream>
 #include <mutex>
 #include <span>
 #include <system_error>
@@ -147,7 +148,7 @@ static inline auto gai_category() noexcept -> const std::error_category& {
     std::chrono::microseconds send_timeout,
     std::chrono::microseconds connect_timeout) noexcept
     -> std::expected<std::monostate, std::error_code> {
-  std::scoped_lock<std::mutex> lock{mtx_};
+  std::lock_guard<std::mutex> lock{mtx_};
   if (fd_ >= 0) {
     return std::unexpected{std::make_error_code(std::errc::already_connected)};
   }
@@ -220,7 +221,6 @@ auto TCPClient::reconnect(std::chrono::microseconds recv_timeout,
 
 auto TCPClient::setRecvTimeout(std::chrono::microseconds timeout) noexcept
     -> std::expected<std::monostate, std::error_code> {
-  std::scoped_lock<std::mutex> lock{mtx_};
   const auto tv_sec = static_cast<time_t>(
       std::chrono::duration_cast<std::chrono::seconds>(timeout).count());
   const auto tv_usec = static_cast<suseconds_t>(timeout.count() % 1000000);
@@ -237,7 +237,6 @@ auto TCPClient::setRecvTimeout(std::chrono::microseconds timeout) noexcept
 
 auto TCPClient::setSendTimeout(std::chrono::microseconds timeout) noexcept
     -> std::expected<std::monostate, std::error_code> {
-  std::scoped_lock<std::mutex> lock{mtx_};
   if (timeout < std::chrono::microseconds::zero()) {
     return std::unexpected{std::make_error_code(std::errc::invalid_argument)};
   }

@@ -33,6 +33,12 @@ class SpwRmapNodeBase {
    */
   virtual auto runLoop() -> void = 0;
 
+  virtual auto registerOnWrite(std::function<void(Packet)> onWrite) noexcept
+      -> void = 0;
+
+  virtual auto registerOnRead(std::function<void(Packet)> onRead) noexcept
+      -> void = 0;
+
   /**
    * @brief Writes data to a target node.
    *
@@ -90,8 +96,7 @@ class SpwRmapNodeBase {
    * @param data Reference to a span where the read data will be stored.
    */
   virtual auto readAsync(std::shared_ptr<TargetNodeBase> target_node,
-                         uint32_t memory_address,
-                         uint32_t data_length,
+                         uint32_t memory_address, uint32_t data_length,
                          std::function<void(Packet)> on_complete) noexcept
       -> std::future<std::expected<std::monostate, std::error_code>> = 0;
 

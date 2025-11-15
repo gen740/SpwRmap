@@ -6,18 +6,19 @@
 #include <cstring>
 #include <functional>
 #include <future>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <thread>
 #include <vector>
 
-#include "spw_rmap/internal/tcp_client.hh"
+#include "spw_rmap/internal/tcp_server.hh"
 #include "spw_rmap/internal/thread_pool.hh"
 #include "spw_rmap/packet_builder.hh"
 #include "spw_rmap/packet_parser.hh"
 #include "spw_rmap/spw_rmap_node_base.hh"
 
-namespace spw_rmap {
+namespace spw_rmap::internal {
 
 using namespace std::chrono_literals;
 
@@ -38,9 +39,9 @@ struct SpwRmapTCPNodeConfig {
   BufferPolicy buffer_policy = BufferPolicy::AutoResize;
 };
 
-class SpwRmapTCPNode : public SpwRmapNodeBase {
+class SpwRmapTCPNodeServer : public SpwRmapNodeBase {
  private:
-  std::unique_ptr<internal::TCPClient> tcp_client_;
+  std::unique_ptr<internal::TCPServer> tcp_server_;
   std::thread worker_thread_;
 
   std::string ip_address_;
@@ -69,7 +70,7 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
   std::function<void(Packet)> on_read_callback_ = nullptr;
 
  public:
-  explicit SpwRmapTCPNode(SpwRmapTCPNodeConfig config) noexcept
+  explicit SpwRmapTCPNodeServer(SpwRmapTCPNodeConfig config) noexcept
       : ip_address_(std::move(config.ip_address)),
         port_(std::move(config.port)),
         recv_buf_(config.recv_buffer_size),
@@ -82,14 +83,15 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
       reply_callback_.emplace_back(nullptr);
       reply_callback_mtx_.emplace_back(std::make_unique<std::mutex>());
     }
+    tcp_server_ = std::make_unique<internal::TCPServer>(ip_address_, port_);
+    auto res = tcp_server_->accept_once(0ms, 0ms);
+    if (!res.has_value()) {
+      std::cerr << "Failed to accept TCP connection: " << res.error().message()
+                << "\n";
+    }
   }
 
  public:
-  auto connect(std::chrono::microseconds recv_timeout = 100ms,
-               std::chrono::microseconds send_timeout = 100ms,
-               std::chrono::microseconds connect_timeout = 100ms)
-      -> std::expected<std::monostate, std::error_code>;
-
   auto setInitiatorLogicalAddress(uint8_t address) -> void {
     initiator_logical_address_ = address;
   }
@@ -172,4 +174,4 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
       -> std::expected<std::monostate, std::error_code> override;
 };
 
-};  // namespace spw_rmap
+};  // namespace spw_rmap::internal
