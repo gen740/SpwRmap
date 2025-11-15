@@ -31,6 +31,10 @@ struct PyTargetNodeBase : public spw_rmap::TargetNodeBase {
 struct PySpwRmapNodeBase : public spw_rmap::SpwRmapNodeBase {
   using spw_rmap::SpwRmapNodeBase::SpwRmapNodeBase;
 
+  auto poll() noexcept -> void override {
+    PYBIND11_OVERRIDE_PURE(void, spw_rmap::SpwRmapNodeBase, poll);
+  }
+
   auto runLoop() noexcept -> void override {
     PYBIND11_OVERRIDE_PURE(void, spw_rmap::SpwRmapNodeBase, runLoop);
   }

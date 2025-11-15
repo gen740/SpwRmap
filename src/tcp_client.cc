@@ -148,7 +148,6 @@ static inline auto gai_category() noexcept -> const std::error_category& {
     std::chrono::microseconds send_timeout,
     std::chrono::microseconds connect_timeout) noexcept
     -> std::expected<std::monostate, std::error_code> {
-  std::lock_guard<std::mutex> lock{mtx_};
   if (fd_ >= 0) {
     return std::unexpected{std::make_error_code(std::errc::already_connected)};
   }
@@ -256,7 +255,6 @@ auto TCPClient::setSendTimeout(std::chrono::microseconds timeout) noexcept
 
 auto TCPClient::sendAll(std::span<const uint8_t> data) noexcept
     -> std::expected<std::monostate, std::error_code> {
-  std::scoped_lock<std::mutex> lock{mtx_};
   if (fd_ < 0) {
     return std::unexpected{std::make_error_code(std::errc::not_connected)};
   }
@@ -267,7 +265,9 @@ auto TCPClient::sendAll(std::span<const uint8_t> data) noexcept
 #else
     constexpr int kFlags = 0;
 #endif
+    std::cout << "TCPClient::sendAll: Sending " << data.size() << " bytes\n";
     const ssize_t n = ::send(fd_, data.data(), data.size(), kFlags);
+    std::cout << "TCPClient::sendAll: send returned " << n << "\n";
     if (n < 0) {
       if (errno == EINTR) {
         continue;
@@ -310,7 +310,6 @@ auto TCPClient::sendAll(std::span<const uint8_t> data) noexcept
 
 auto TCPClient::recvSome(std::span<uint8_t> buf) noexcept
     -> std::expected<size_t, std::error_code> {
-  std::scoped_lock<std::mutex> lock{mtx_};
   if (buf.empty()) {
     return 0U;  // Nothing to receive
   }

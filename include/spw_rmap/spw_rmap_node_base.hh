@@ -31,6 +31,9 @@ class SpwRmapNodeBase {
    * @brief Runs the main loop of the node.
    *
    */
+
+  virtual auto poll() -> void = 0;
+
   virtual auto runLoop() -> void = 0;
 
   virtual auto registerOnWrite(std::function<void(Packet)> onWrite) noexcept

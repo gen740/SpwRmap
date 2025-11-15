@@ -179,61 +179,63 @@ auto SpwRmapTCPNode::ignoreNBytes_(std::size_t n)
   return requested_size;
 }
 
+auto SpwRmapTCPNode::poll() noexcept -> void {
+  auto res = recvAndParseOnePacket_();
+  if (!res.has_value()) {
+    std::cerr << "Error in receiving/parsing packet: " << res.error().message()
+              << "\n";
+    return;
+  }
+
+  auto& packet = packet_parser_.getPacket();
+
+  switch (packet.type) {
+    case PacketType::ReadReply:
+    case PacketType::WriteReply: {
+      if (packet.transactionID < transaction_id_min_ ||
+          packet.transactionID >= transaction_id_max_) {
+        std::cerr << "Received packet with out-of-range Transaction ID: "
+                  << packet.transactionID << "\n";
+        return;
+      }
+      auto res = recv_thread_pool_.post([this, packet]() noexcept -> void {
+        std::lock_guard<std::mutex> lock(
+            *reply_callback_mtx_[packet.transactionID - transaction_id_min_]);
+        if (reply_callback_[packet.transactionID - transaction_id_min_]) {
+          reply_callback_[packet.transactionID - transaction_id_min_](packet);
+          reply_callback_[packet.transactionID - transaction_id_min_] = nullptr;
+        } else {
+          std::cerr << "No callback registered for Transaction ID: "
+                    << packet.transactionID << "\n";
+        }
+      });
+      if (!res.has_value()) {
+        std::cerr << "Failed to post callback to thread pool: "
+                  << res.error().message() << "\n";
+      }
+      break;
+    }
+    case PacketType::Read:
+      if (on_read_callback_) {
+        on_read_callback_(packet);
+      }
+      break;
+    case PacketType::Write:
+      if (on_write_callback_) {
+        on_write_callback_(packet);
+      }
+      break;
+    default:
+      std::cout << "Received Other Packet Type: "
+                << static_cast<uint8_t>(packet.type) << "\n";
+      break;
+  }
+}
+
 auto SpwRmapTCPNode::runLoop() noexcept -> void {
   running_.store(true);
-
   while (running_.load()) {
-    auto res = recvAndParseOnePacket_();
-    if (!res.has_value()) {
-      std::cerr << "Error in receiving/parsing packet: "
-                << res.error().message() << "\n";
-      continue;
-    }
-
-    auto& packet = packet_parser_.getPacket();
-
-    switch (packet.type) {
-      case PacketType::ReadReply:
-      case PacketType::WriteReply: {
-        if (packet.transactionID < transaction_id_min_ ||
-            packet.transactionID >= transaction_id_max_) {
-          std::cerr << "Received packet with out-of-range Transaction ID: "
-                    << packet.transactionID << "\n";
-          continue;
-        }
-        auto res = recv_thread_pool_.post([this, packet]() noexcept -> void {
-          std::lock_guard<std::mutex> lock(
-              *reply_callback_mtx_[packet.transactionID - transaction_id_min_]);
-          if (reply_callback_[packet.transactionID - transaction_id_min_]) {
-            reply_callback_[packet.transactionID - transaction_id_min_](packet);
-            reply_callback_[packet.transactionID - transaction_id_min_] =
-                nullptr;
-          } else {
-            std::cerr << "No callback registered for Transaction ID: "
-                      << packet.transactionID << "\n";
-          }
-        });
-        if (!res.has_value()) {
-          std::cerr << "Failed to post callback to thread pool: "
-                    << res.error().message() << "\n";
-        }
-        break;
-      }
-      case PacketType::Read:
-        if (on_read_callback_) {
-          on_read_callback_(packet);
-        }
-        break;
-      case PacketType::Write:
-        if (on_write_callback_) {
-          on_write_callback_(packet);
-        }
-        break;
-      default:
-        std::cout << "Received Other Packet Type: "
-                  << static_cast<uint8_t>(packet.type) << "\n";
-        break;
-    }
+    poll();
   }
 }
 
@@ -345,7 +347,12 @@ auto SpwRmapTCPNode::sendReadPacket_(
   send_buffer[10] = static_cast<uint8_t>((total_size >> 8) & 0xFF);
   send_buffer[11] = static_cast<uint8_t>((total_size >> 0) & 0xFF);
 
+  std::cout << "Sending Read Packet: Transaction ID = " << transaction_id
+            << ", Address = 0x" << std::hex << memory_address
+            << ", Length = " << std::dec << data_length << "\n";
   auto res_send = tcp_client_->sendAll(send_buffer.first(total_size + 12));
+
+  std::cout << "Send Read Packet Result: ";
 
   if (!res_send.has_value()) {
     return std::unexpected{res_send.error()};

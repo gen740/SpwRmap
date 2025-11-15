@@ -84,16 +84,20 @@ class SpwRmapTCPNodeServer : public SpwRmapNodeBase {
       reply_callback_mtx_.emplace_back(std::make_unique<std::mutex>());
     }
     tcp_server_ = std::make_unique<internal::TCPServer>(ip_address_, port_);
-    auto res = tcp_server_->accept_once(0ms, 0ms);
-    if (!res.has_value()) {
-      std::cerr << "Failed to accept TCP connection: " << res.error().message()
-                << "\n";
-    }
   }
 
  public:
   auto setInitiatorLogicalAddress(uint8_t address) -> void {
     initiator_logical_address_ = address;
+  }
+
+  auto acceptOnce(std::chrono::microseconds send_timeout,
+                  std::chrono::microseconds recv_timeout) {
+    auto res = tcp_server_->accept_once(send_timeout, recv_timeout);
+    if (!res.has_value()) {
+      std::cerr << "Failed to accept TCP connection: " << res.error().message()
+                << "\n";
+    }
   }
 
  private:
@@ -139,6 +143,8 @@ class SpwRmapTCPNodeServer : public SpwRmapNodeBase {
   }
 
  public:
+  auto poll() noexcept -> void override;
+
   auto runLoop() noexcept -> void override;
 
   auto registerOnWrite(std::function<void(Packet)> onWrite) noexcept

@@ -9,7 +9,7 @@ using namespace std::chrono_literals;
 auto main() -> int {
   std::cout << "hi";
   auto client = spw_rmap::internal::TCPClient("localhost", "10032");
-  auto res = client.connect(500ms, 500ms, 500ms);
+  auto res = client.connect(0ms, 0ms, 500ms);
   if (!res.has_value()) {
     std::println("Failed to connect to the server. Error: {}",
                  res.error().message());
@@ -34,6 +34,8 @@ auto main() -> int {
     std::println("Failed to send data. Error: {}", res.error().message());
     return 1;
   }
+
+  std::this_thread::sleep_for(1000ms);
 
   for (const auto& byte : buffer) {
     std::print("{:02x} ", byte);
