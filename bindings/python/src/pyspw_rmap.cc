@@ -31,18 +31,37 @@ struct PyTargetNodeBase : public spw_rmap::TargetNodeBase {
 struct PySpwRmapNodeBase : public spw_rmap::SpwRmapNodeBase {
   using spw_rmap::SpwRmapNodeBase::SpwRmapNodeBase;
 
-  [[nodiscard]] auto write(const spw_rmap::TargetNodeBase&, uint32_t,
+  auto runLoop() noexcept -> void override {
+    PYBIND11_OVERRIDE_PURE(void, spw_rmap::SpwRmapNodeBase, runLoop);
+  }
+
+  [[nodiscard]] auto write(std::shared_ptr<spw_rmap::TargetNodeBase>, uint32_t,
                            const std::span<const uint8_t>) noexcept
       -> std::expected<std::monostate, std::error_code> override {
     using R = std::expected<std::monostate, std::error_code>;
     PYBIND11_OVERRIDE_PURE(R, spw_rmap::SpwRmapNodeBase, write);
   }
 
-  [[nodiscard]] auto read(const spw_rmap::TargetNodeBase&, uint32_t,
+  [[nodiscard]] auto read(std::shared_ptr<spw_rmap::TargetNodeBase>, uint32_t,
                           const std::span<uint8_t>) noexcept
       -> std::expected<std::monostate, std::error_code> override {
     using R = std::expected<std::monostate, std::error_code>;
     PYBIND11_OVERRIDE_PURE(R, spw_rmap::SpwRmapNodeBase, read);
+  }
+
+  auto writeAsync(std::shared_ptr<spw_rmap::TargetNodeBase>, uint32_t,
+                  const std::span<const uint8_t>,
+                  std::function<void(spw_rmap::Packet)>) noexcept
+      -> std::future<std::expected<std::monostate, std::error_code>> override {
+    using R = std::future<std::expected<std::monostate, std::error_code>>;
+    PYBIND11_OVERRIDE_PURE(R, spw_rmap::SpwRmapNodeBase, writeAsync);
+  }
+
+  auto readAsync(std::shared_ptr<spw_rmap::TargetNodeBase>, uint32_t, uint32_t,
+                 std::function<void(spw_rmap::Packet)>) noexcept
+      -> std::future<std::expected<std::monostate, std::error_code>> override {
+    using R = std::future<std::expected<std::monostate, std::error_code>>;
+    PYBIND11_OVERRIDE_PURE(R, spw_rmap::SpwRmapNodeBase, readAsync);
   }
 
   [[nodiscard]] auto emitTimeCode(uint8_t) noexcept
@@ -135,7 +154,7 @@ PYBIND11_MODULE(_core, m) {
       .def(
           "write",
           [](spw_rmap::SpwRmapNodeBase& self,
-             const spw_rmap::TargetNodeBase& target_node,
+             std::shared_ptr<spw_rmap::TargetNodeBase> target_node,
              std::uint32_t memory_address,
              std::span<const std::uint8_t> data) -> void {
             return unwrap_or_throw(
@@ -145,7 +164,7 @@ PYBIND11_MODULE(_core, m) {
       .def(
           "read",
           [](spw_rmap::SpwRmapNodeBase& self,
-             const spw_rmap::TargetNodeBase& target_node,
+             std::shared_ptr<spw_rmap::TargetNodeBase>& target_node,
              std::uint32_t memory_address,
              std::span<std::uint8_t> data) -> void {
             return unwrap_or_throw(
@@ -196,7 +215,7 @@ PYBIND11_MODULE(_core, m) {
       .def(
           "write",
           [](spw_rmap::SpwRmapTCPNode& self,
-             const spw_rmap::TargetNodeBase& target_node,
+             std::shared_ptr<spw_rmap::TargetNodeBase> target_node,
              std::uint32_t memory_address,
              std::span<const std::uint8_t> data) -> void {
             return unwrap_or_throw(
@@ -206,7 +225,7 @@ PYBIND11_MODULE(_core, m) {
       .def(
           "read",
           [](spw_rmap::SpwRmapTCPNode& self,
-             const spw_rmap::TargetNodeBase& target_node,
+             std::shared_ptr<spw_rmap::TargetNodeBase> target_node,
              std::uint32_t memory_address,
              std::span<std::uint8_t> data) -> void {
             return unwrap_or_throw(

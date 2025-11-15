@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstdint>
 #include <expected>
+#include <mutex>
 #include <span>
 #include <system_error>
 
@@ -25,6 +26,7 @@ class TCPClient {
   static auto close_retry_(int fd) noexcept -> void;
   std::string_view ip_address_;
   std::string_view port_;
+  std::mutex mtx_;
 
  public:
   TCPClient() = delete;
