@@ -173,11 +173,6 @@ auto PacketParser::parse(const std::span<const uint8_t> packet) noexcept
     -> Status {
   size_t head = 0;
 
-  for (uint8_t byte : packet) {
-    std::cout << std::hex << static_cast<int>(byte) << " ";
-  }
-  std::cout << std::dec << "\n";
-
   // Parse target SpaceWire address
   while (packet[head] < 0x20) {
     head++;

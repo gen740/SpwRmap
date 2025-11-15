@@ -242,7 +242,6 @@ auto TCPServer::recvSome(std::span<uint8_t> buf) noexcept
     return 0U;
   }
   for (;;) {
-    std::cout << "Receiving " << buf.size() << " bytes...\n";
     const ssize_t n = ::recv(client_fd_, buf.data(), buf.size(), 0);
     if (n < 0) {
       if (errno == EINTR) {

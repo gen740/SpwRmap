@@ -201,19 +201,74 @@ auto SpwRmapTCPNodeServer::poll() noexcept -> void {
       }
       break;
     }
-    case PacketType::Read:
+    case PacketType::Read: {
+      std::vector<uint8_t> data;
       if (on_read_callback_) {
-        on_read_callback_(packet);
+        auto data = on_read_callback_(packet);
       }
+      if (data.size() != packet.dataLength) {
+        std::cerr << "on_read_callback_ returned data with incorrect length: "
+                  << data.size() << " (expected " << packet.dataLength << ")\n";
+      }
+      auto config = ReadReplyPacketConfig{
+          .replyAddress = packet.replyAddress,
+          .initiatorLogicalAddress = packet.targetLogicalAddress,
+          .status = static_cast<uint8_t>(
+              PacketStatusCode::CommandExecutedSuccessfully),
+          .targetLogicalAddress = packet.initiatorLogicalAddress,
+          .transactionID = packet.transactionID,
+          .data = data,
+          .incrementMode = true,
+      };
+      ReadReplyPacketBuilder builder;
+      auto send_buffer = std::span(send_buf_);
+      ;
+      auto build_res = builder.build(config, send_buffer.subspan(12));
+      if (!build_res.has_value()) {
+        std::cerr << "Failed to build Write Reply Packet: "
+                  << build_res.error().message() << "\n";
+        return;
+      }
+      auto send_res = send_(builder.getTotalSize(config));
+      if (!send_res.has_value()) {
+        std::cerr << "Failed to send Write Reply Packet: "
+                  << send_res.error().message() << "\n";
+        return;
+      }
+
       break;
-    case PacketType::Write:
+    }
+    case PacketType::Write: {
       if (on_write_callback_) {
         on_write_callback_(packet);
       }
+      auto config = WriteReplyPacketConfig{
+          .replyAddress = packet.replyAddress,
+          .initiatorLogicalAddress = packet.targetLogicalAddress,
+          .status = static_cast<uint8_t>(
+              PacketStatusCode::CommandExecutedSuccessfully),
+          .targetLogicalAddress = packet.initiatorLogicalAddress,
+          .transactionID = packet.transactionID,
+          .incrementMode = true,
+          .verifyMode = true,
+      };
+      WriteReplyPacketBuilder builder;
+      auto send_buffer = std::span(send_buf_);
+      auto build_res = builder.build(config, send_buffer.subspan(12));
+      if (!build_res.has_value()) {
+        std::cerr << "Failed to build Write Reply Packet: "
+                  << build_res.error().message() << "\n";
+        return;
+      }
+      auto send_res = send_(builder.getTotalSize(config));
+      if (!send_res.has_value()) {
+        std::cerr << "Failed to send Write Reply Packet: "
+                  << send_res.error().message() << "\n";
+        return;
+      }
       break;
+    }
     default:
-      std::cout << "Received Other Packet Type: "
-                << static_cast<uint8_t>(packet.type) << "\n";
       break;
   }
 }
@@ -223,6 +278,24 @@ auto SpwRmapTCPNodeServer::runLoop() noexcept -> void {
   while (running_.load()) {
     poll();
   }
+}
+
+auto SpwRmapTCPNodeServer::send_(size_t total_size)
+    -> std::expected<std::monostate, std::error_code> {
+  auto send_buffer = std::span(send_buf_);
+  send_buffer[0] = 0x00;
+  send_buffer[1] = 0x00;
+  send_buffer[2] = 0x00;
+  send_buffer[3] = 0x00;
+  send_buffer[4] = static_cast<uint8_t>((total_size >> 56) & 0xFF);
+  send_buffer[5] = static_cast<uint8_t>((total_size >> 48) & 0xFF);
+  send_buffer[6] = static_cast<uint8_t>((total_size >> 40) & 0xFF);
+  send_buffer[7] = static_cast<uint8_t>((total_size >> 32) & 0xFF);
+  send_buffer[8] = static_cast<uint8_t>((total_size >> 24) & 0xFF);
+  send_buffer[9] = static_cast<uint8_t>((total_size >> 16) & 0xFF);
+  send_buffer[10] = static_cast<uint8_t>((total_size >> 8) & 0xFF);
+  send_buffer[11] = static_cast<uint8_t>((total_size >> 0) & 0xFF);
+  return tcp_server_->sendAll(std::span(send_buf_).first(total_size + 12));
 }
 
 auto SpwRmapTCPNodeServer::sendWritePacket_(
@@ -260,20 +333,7 @@ auto SpwRmapTCPNodeServer::sendWritePacket_(
   if (!res.has_value()) {
     return std::unexpected{res.error()};
   }
-  auto total_size = write_packet_builder_.getTotalSize(config);
-  send_buffer[0] = 0x00;
-  send_buffer[1] = 0x00;
-  send_buffer[2] = 0x00;
-  send_buffer[3] = 0x00;
-  send_buffer[4] = static_cast<uint8_t>((total_size >> 56) & 0xFF);
-  send_buffer[5] = static_cast<uint8_t>((total_size >> 48) & 0xFF);
-  send_buffer[6] = static_cast<uint8_t>((total_size >> 40) & 0xFF);
-  send_buffer[7] = static_cast<uint8_t>((total_size >> 32) & 0xFF);
-  send_buffer[8] = static_cast<uint8_t>((total_size >> 24) & 0xFF);
-  send_buffer[9] = static_cast<uint8_t>((total_size >> 16) & 0xFF);
-  send_buffer[10] = static_cast<uint8_t>((total_size >> 8) & 0xFF);
-  send_buffer[11] = static_cast<uint8_t>((total_size >> 0) & 0xFF);
-  return tcp_server_->sendAll(send_buffer.subspan(0, total_size + 12));
+  return send_(write_packet_builder_.getTotalSize(config));
 }
 
 auto SpwRmapTCPNodeServer::sendReadPacket_(
@@ -319,25 +379,7 @@ auto SpwRmapTCPNodeServer::sendReadPacket_(
       send_buffer = std::span(send_buf_);
     }
   }
-  auto total_size = read_packet_builder_.getTotalSize(config);
-  send_buffer[0] = 0x00;
-  send_buffer[1] = 0x00;
-  send_buffer[2] = 0x00;
-  send_buffer[3] = 0x00;
-  send_buffer[4] = static_cast<uint8_t>((total_size >> 56) & 0xFF);
-  send_buffer[5] = static_cast<uint8_t>((total_size >> 48) & 0xFF);
-  send_buffer[6] = static_cast<uint8_t>((total_size >> 40) & 0xFF);
-  send_buffer[7] = static_cast<uint8_t>((total_size >> 32) & 0xFF);
-  send_buffer[8] = static_cast<uint8_t>((total_size >> 24) & 0xFF);
-  send_buffer[9] = static_cast<uint8_t>((total_size >> 16) & 0xFF);
-  send_buffer[10] = static_cast<uint8_t>((total_size >> 8) & 0xFF);
-  send_buffer[11] = static_cast<uint8_t>((total_size >> 0) & 0xFF);
-  auto res_send = tcp_server_->sendAll(send_buffer.first(total_size + 12));
-
-  if (!res_send.has_value()) {
-    return std::unexpected{res_send.error()};
-  }
-  return {};
+  return send_(read_packet_builder_.getTotalSize(config));
 }
 
 auto SpwRmapTCPNodeServer::writeAsync(            //

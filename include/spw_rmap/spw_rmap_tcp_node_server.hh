@@ -67,7 +67,7 @@ class SpwRmapTCPNodeServer : public SpwRmapNodeBase {
   std::atomic<bool> running_{false};
 
   std::function<void(Packet)> on_write_callback_ = nullptr;
-  std::function<void(Packet)> on_read_callback_ = nullptr;
+  std::function<std::vector<uint8_t>(Packet)> on_read_callback_ = nullptr;
 
  public:
   explicit SpwRmapTCPNodeServer(SpwRmapTCPNodeConfig config) noexcept
@@ -147,12 +147,16 @@ class SpwRmapTCPNodeServer : public SpwRmapNodeBase {
 
   auto runLoop() noexcept -> void override;
 
+  auto send_(size_t total_size)
+      -> std::expected<std::monostate, std::error_code>;
+
   auto registerOnWrite(std::function<void(Packet)> onWrite) noexcept
       -> void override {
     on_write_callback_ = std::move(onWrite);
   }
 
-  auto registerOnRead(std::function<void(Packet)> onRead) noexcept
+  auto registerOnRead(
+      std::function<std::vector<uint8_t>(Packet)> onRead) noexcept
       -> void override {
     on_read_callback_ = std::move(onRead);
   }

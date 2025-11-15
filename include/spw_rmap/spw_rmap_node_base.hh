@@ -11,6 +11,7 @@
 #include <system_error>
 #include <variant>
 
+#include "spw_rmap/packet_builder.hh"
 #include "spw_rmap/packet_parser.hh"
 #include "spw_rmap/target_node.hh"
 
@@ -39,8 +40,8 @@ class SpwRmapNodeBase {
   virtual auto registerOnWrite(std::function<void(Packet)> onWrite) noexcept
       -> void = 0;
 
-  virtual auto registerOnRead(std::function<void(Packet)> onRead) noexcept
-      -> void = 0;
+  virtual auto registerOnRead(
+      std::function<std::vector<uint8_t>(Packet)> onRead) noexcept -> void = 0;
 
   /**
    * @brief Writes data to a target node.

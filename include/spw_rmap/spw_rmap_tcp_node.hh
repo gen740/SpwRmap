@@ -6,6 +6,7 @@
 #include <cstring>
 #include <functional>
 #include <future>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <thread>
@@ -66,7 +67,7 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
   std::atomic<bool> running_{false};
 
   std::function<void(Packet)> on_write_callback_ = nullptr;
-  std::function<void(Packet)> on_read_callback_ = nullptr;
+  std::function<std::vector<uint8_t>(Packet)> on_read_callback_ = nullptr;
 
  public:
   explicit SpwRmapTCPNode(SpwRmapTCPNodeConfig config) noexcept
@@ -88,7 +89,16 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
   auto connect(std::chrono::microseconds recv_timeout = 100ms,
                std::chrono::microseconds send_timeout = 100ms,
                std::chrono::microseconds connect_timeout = 100ms)
-      -> std::expected<std::monostate, std::error_code>;
+      -> std::expected<std::monostate, std::error_code> {
+    tcp_client_ = std::make_unique<internal::TCPClient>(ip_address_, port_);
+    auto res =
+        tcp_client_->connect(recv_timeout, send_timeout, connect_timeout);
+    if (!res.has_value()) {
+      tcp_client_->disconnect();
+      return std::unexpected{res.error()};
+    }
+    return {};
+  }
 
   auto setInitiatorLogicalAddress(uint8_t address) -> void {
     initiator_logical_address_ = address;
@@ -102,6 +112,8 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
 
   auto ignoreNBytes_(std::size_t n)
       -> std::expected<std::size_t, std::error_code>;
+
+  auto send_(size_t nbytes) -> std::expected<std::monostate, std::error_code>;
 
   auto sendReadPacket_(std::shared_ptr<TargetNodeBase> target_node,
                        uint16_t transaction_id, uint32_t memory_address,
@@ -146,7 +158,8 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
     on_write_callback_ = std::move(onWrite);
   }
 
-  auto registerOnRead(std::function<void(Packet)> onRead) noexcept
+  auto registerOnRead(
+      std::function<std::vector<uint8_t>(Packet)> onRead) noexcept
       -> void override {
     on_read_callback_ = std::move(onRead);
   }

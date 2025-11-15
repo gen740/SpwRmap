@@ -265,9 +265,7 @@ auto TCPClient::sendAll(std::span<const uint8_t> data) noexcept
 #else
     constexpr int kFlags = 0;
 #endif
-    std::cout << "TCPClient::sendAll: Sending " << data.size() << " bytes\n";
     const ssize_t n = ::send(fd_, data.data(), data.size(), kFlags);
-    std::cout << "TCPClient::sendAll: send returned " << n << "\n";
     if (n < 0) {
       if (errno == EINTR) {
         continue;
