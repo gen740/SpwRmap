@@ -7,10 +7,10 @@ auto main() -> int {
   std::random_device rd;
   std::mt19937 gen(rd());
 
-  auto config = spw_rmap::internal::SpwRmapTCPNodeConfig{
-      .ip_address = "0.0.0.0", .port = "10032"};
+  auto config =
+      spw_rmap::SpwRmapTCPNodeConfig{.ip_address = "0.0.0.0", .port = "10032"};
 
-  spw_rmap::internal::SpwRmapTCPNodeServer server(config);
+  spw_rmap::SpwRmapTCPNodeServer server(config);
   server.acceptOnce(0ms, 0ms);
 
   server.registerOnRead(
@@ -35,8 +35,6 @@ auto main() -> int {
   });
 
   server.poll();
-  // server.poll();
-  // server.poll();
 
   return 0;
 }

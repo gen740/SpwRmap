@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <iostream>
 
-namespace spw_rmap::internal {
+namespace spw_rmap {
 
 using namespace std::chrono_literals;
 
@@ -202,9 +202,9 @@ auto SpwRmapTCPNodeServer::poll() noexcept -> void {
       break;
     }
     case PacketType::Read: {
-      std::vector<uint8_t> data;
+      std::vector<uint8_t> data{};
       if (on_read_callback_) {
-        auto data = on_read_callback_(packet);
+        data = on_read_callback_(packet);
       }
       if (data.size() != packet.dataLength) {
         std::cerr << "on_read_callback_ returned data with incorrect length: "
@@ -222,7 +222,6 @@ auto SpwRmapTCPNodeServer::poll() noexcept -> void {
       };
       ReadReplyPacketBuilder builder;
       auto send_buffer = std::span(send_buf_);
-      ;
       auto build_res = builder.build(config, send_buffer.subspan(12));
       if (!build_res.has_value()) {
         std::cerr << "Failed to build Write Reply Packet: "
@@ -499,4 +498,4 @@ auto SpwRmapTCPNodeServer::emitTimeCode(uint8_t timecode) noexcept
   return tcp_server_->sendAll(packet);
 }
 
-}  // namespace spw_rmap::internal
+}  // namespace spw_rmap

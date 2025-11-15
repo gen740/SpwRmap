@@ -131,6 +131,8 @@ class ThreadPool {
       }
     }
     assert(false && "Semaphore and worker state are inconsistent");
+    return std::unexpected{
+        std::make_error_code(std::errc::resource_unavailable_try_again)};
   }
 
   auto stop() noexcept -> void {

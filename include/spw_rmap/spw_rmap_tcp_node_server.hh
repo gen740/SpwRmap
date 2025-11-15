@@ -18,7 +18,7 @@
 #include "spw_rmap/packet_parser.hh"
 #include "spw_rmap/spw_rmap_node_base.hh"
 
-namespace spw_rmap::internal {
+namespace spw_rmap {
 
 using namespace std::chrono_literals;
 
