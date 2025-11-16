@@ -11,7 +11,6 @@
 #include <system_error>
 #include <variant>
 
-#include "spw_rmap/packet_builder.hh"
 #include "spw_rmap/packet_parser.hh"
 #include "spw_rmap/target_node.hh"
 
@@ -33,7 +32,7 @@ class SpwRmapNodeBase {
    *
    */
 
-  virtual auto poll() -> std::expected<std::monostate, std::error_code> = 0;
+  virtual auto poll() -> std::expected<bool, std::error_code> = 0;
 
   virtual auto runLoop() -> std::expected<std::monostate, std::error_code> = 0;
 

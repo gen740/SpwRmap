@@ -8,7 +8,7 @@ auto main() -> int {
   std::mt19937 gen(rd());
 
   auto config =
-      spw_rmap::SpwRmapTCPNodeConfig{.ip_address = "0.0.0.0", .port = "10032"};
+      spw_rmap::SpwRmapTCPNodeConfig{.ip_address = "0.0.0.0", .port = "10030"};
 
   spw_rmap::SpwRmapTCPNodeServer server(config);
   server.acceptOnce(0ms, 0ms);
@@ -34,7 +34,7 @@ auto main() -> int {
               << "\n";
   });
 
-  server.poll();
+  server.runLoop();
 
   return 0;
 }

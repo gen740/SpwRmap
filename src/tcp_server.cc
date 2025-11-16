@@ -83,6 +83,8 @@ static inline auto gai_category() noexcept -> const std::error_category& {
 auto TCPServer::accept_once(std::chrono::microseconds send_timeout,
                             std::chrono::microseconds recv_timeout) noexcept
     -> std::expected<std::monostate, std::error_code> {
+  std::cout << "TCPServer: Accepting connection on " << bind_address_ << ":"
+            << port_ << "\n";
   addrinfo hints{};
   hints.ai_family = AF_UNSPEC;  // IPv4/IPv6 both
   hints.ai_socktype = SOCK_STREAM;
@@ -254,6 +256,18 @@ auto TCPServer::recvSome(std::span<uint8_t> buf) noexcept
     }
     return static_cast<std::size_t>(n);  // 0 -> EOF
   }
+}
+
+auto TCPServer::shutdown() noexcept
+    -> std::expected<std::monostate, std::error_code> {
+  if (client_fd_ < 0) {
+    return std::unexpected(
+        std::make_error_code(std::errc::bad_file_descriptor));
+  }
+  if (::shutdown(client_fd_, SHUT_RDWR) < 0) {
+    return std::unexpected(std::error_code(errno, std::generic_category()));
+  }
+  return std::monostate{};
 }
 
 };  // namespace spw_rmap::internal

@@ -47,6 +47,8 @@ class TCPServer {
 
   auto recvSome(std::span<uint8_t> buf) noexcept
       -> std::expected<size_t, std::error_code>;
+
+  auto shutdown() noexcept -> std::expected<std::monostate, std::error_code>;
 };
 
 }  // namespace spw_rmap::internal

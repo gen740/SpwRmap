@@ -21,8 +21,7 @@ auto SpwRmapTCPNode::recvExact_(std::span<uint8_t> buffer)
       return std::unexpected(res.error());
     }
     if (res.value() == 0) {
-      return std::unexpected{
-          std::make_error_code(std::errc::connection_aborted)};
+      return 0;
     }
     buffer = buffer.subspan(res.value());
   }
@@ -61,6 +60,9 @@ auto SpwRmapTCPNode::recvAndParseOnePacket_()
     auto res = recvExact_(header);
     if (!res.has_value()) {
       return std::unexpected(res.error());
+    }
+    if (res.value() == 0) {
+      return 0;
     }
 
     if (header.at(0) != 0x00 && header.at(0) != 0x01 && header.at(0) != 0x02 &&
@@ -167,13 +169,15 @@ auto SpwRmapTCPNode::ignoreNBytes_(std::size_t n)
   return requested_size;
 }
 
-auto SpwRmapTCPNode::poll() noexcept
-    -> std::expected<std::monostate, std::error_code> {
+auto SpwRmapTCPNode::poll() noexcept -> std::expected<bool, std::error_code> {
   auto res = recvAndParseOnePacket_();
   if (!res.has_value()) {
     std::cerr << "Error in receiving/parsing packet: " << res.error().message()
               << "\n";
     return std::unexpected{res.error()};
+  }
+  if (res.value() == 0) {
+    return false;
   }
 
   auto& packet = packet_parser_.getPacket();
@@ -272,15 +276,19 @@ auto SpwRmapTCPNode::poll() noexcept
     default:
       break;
   }
-  return {};
+  return true;
 }
 
-auto SpwRmapTCPNode::runLoop() noexcept -> std::expected<std::monostate, std::error_code> {
+auto SpwRmapTCPNode::runLoop() noexcept
+    -> std::expected<std::monostate, std::error_code> {
   running_.store(true);
   while (running_.load()) {
     auto res = poll();
     if (!res.has_value()) {
       return std::unexpected{res.error()};
+    }
+    if (!res.value()) {
+      break;
     }
   }
   return {};

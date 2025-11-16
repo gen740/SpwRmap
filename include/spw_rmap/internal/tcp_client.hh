@@ -65,6 +65,9 @@ class TCPClient {
 
   [[nodiscard]] auto recvSome(std::span<uint8_t> buf) noexcept
       -> std::expected<size_t, std::error_code>;
+
+  [[nodiscard]] auto shutdown() noexcept
+      -> std::expected<std::monostate, std::error_code>;
 };
 
 }  // namespace spw_rmap::internal
