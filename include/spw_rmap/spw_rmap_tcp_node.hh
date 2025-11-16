@@ -149,9 +149,11 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
   }
 
  public:
-  auto poll() noexcept -> void override;
+  auto poll() noexcept
+      -> std::expected<std::monostate, std::error_code> override;
 
-  auto runLoop() noexcept -> void override;
+  auto runLoop() noexcept
+      -> std::expected<std::monostate, std::error_code> override;
 
   auto registerOnWrite(std::function<void(Packet)> onWrite) noexcept
       -> void override {

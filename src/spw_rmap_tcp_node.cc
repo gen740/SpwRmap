@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <iostream>
 
+#include "spw_rmap/error_code.hh"
+
 namespace spw_rmap {
 
 using namespace std::chrono_literals;
@@ -165,12 +167,13 @@ auto SpwRmapTCPNode::ignoreNBytes_(std::size_t n)
   return requested_size;
 }
 
-auto SpwRmapTCPNode::poll() noexcept -> void {
+auto SpwRmapTCPNode::poll() noexcept
+    -> std::expected<std::monostate, std::error_code> {
   auto res = recvAndParseOnePacket_();
   if (!res.has_value()) {
     std::cerr << "Error in receiving/parsing packet: " << res.error().message()
               << "\n";
-    return;
+    return std::unexpected{res.error()};
   }
 
   auto& packet = packet_parser_.getPacket();
@@ -182,7 +185,7 @@ auto SpwRmapTCPNode::poll() noexcept -> void {
           packet.transactionID >= transaction_id_max_) {
         std::cerr << "Received packet with out-of-range Transaction ID: "
                   << packet.transactionID << "\n";
-        return;
+        return std::unexpected{std::make_error_code(std::errc::bad_message)};
       }
       auto res = recv_thread_pool_.post([this, packet]() noexcept -> void {
         std::lock_guard<std::mutex> lock(
@@ -202,9 +205,9 @@ auto SpwRmapTCPNode::poll() noexcept -> void {
       break;
     }
     case PacketType::Read: {
-      std::vector<uint8_t> data;
+      std::vector<uint8_t> data{};
       if (on_read_callback_) {
-        auto data = on_read_callback_(packet);
+        data = on_read_callback_(packet);
       }
       if (data.size() != packet.dataLength) {
         std::cerr << "on_read_callback_ returned data with incorrect length: "
@@ -222,27 +225,24 @@ auto SpwRmapTCPNode::poll() noexcept -> void {
       };
       ReadReplyPacketBuilder builder;
       auto send_buffer = std::span(send_buf_);
-      ;
       auto build_res = builder.build(config, send_buffer.subspan(12));
       if (!build_res.has_value()) {
         std::cerr << "Failed to build Write Reply Packet: "
                   << build_res.error().message() << "\n";
-        return;
+        return std::unexpected{build_res.error()};
       }
       auto send_res = send_(builder.getTotalSize(config));
       if (!send_res.has_value()) {
         std::cerr << "Failed to send Write Reply Packet: "
                   << send_res.error().message() << "\n";
-        return;
+        return std::unexpected{send_res.error()};
       }
-
       break;
     }
     case PacketType::Write: {
       if (on_write_callback_) {
         on_write_callback_(packet);
       }
-
       auto config = WriteReplyPacketConfig{
           .replyAddress = packet.replyAddress,
           .initiatorLogicalAddress = packet.targetLogicalAddress,
@@ -259,27 +259,31 @@ auto SpwRmapTCPNode::poll() noexcept -> void {
       if (!build_res.has_value()) {
         std::cerr << "Failed to build Write Reply Packet: "
                   << build_res.error().message() << "\n";
-        return;
+        return std::unexpected{build_res.error()};
       }
       auto send_res = send_(builder.getTotalSize(config));
       if (!send_res.has_value()) {
         std::cerr << "Failed to send Write Reply Packet: "
                   << send_res.error().message() << "\n";
-        return;
+        return std::unexpected{send_res.error()};
       }
-
       break;
     }
     default:
       break;
   }
+  return {};
 }
 
-auto SpwRmapTCPNode::runLoop() noexcept -> void {
+auto SpwRmapTCPNode::runLoop() noexcept -> std::expected<std::monostate, std::error_code> {
   running_.store(true);
   while (running_.load()) {
-    poll();
+    auto res = poll();
+    if (!res.has_value()) {
+      return std::unexpected{res.error()};
+    }
   }
+  return {};
 }
 
 auto SpwRmapTCPNode::send_(size_t total_size)

@@ -33,9 +33,9 @@ class SpwRmapNodeBase {
    *
    */
 
-  virtual auto poll() -> void = 0;
+  virtual auto poll() -> std::expected<std::monostate, std::error_code> = 0;
 
-  virtual auto runLoop() -> void = 0;
+  virtual auto runLoop() -> std::expected<std::monostate, std::error_code> = 0;
 
   virtual auto registerOnWrite(std::function<void(Packet)> onWrite) noexcept
       -> void = 0;

@@ -142,13 +142,15 @@ class SpwRmapTCPNodeServer : public SpwRmapNodeBase {
     available_transaction_ids_[transaction_id - transaction_id_min_] = true;
   }
 
- public:
-  auto poll() noexcept -> void override;
-
-  auto runLoop() noexcept -> void override;
-
   auto send_(size_t total_size)
       -> std::expected<std::monostate, std::error_code>;
+
+ public:
+  auto poll() noexcept
+      -> std::expected<std::monostate, std::error_code> override;
+
+  auto runLoop() noexcept
+      -> std::expected<std::monostate, std::error_code> override;
 
   auto registerOnWrite(std::function<void(Packet)> onWrite) noexcept
       -> void override {
@@ -184,4 +186,4 @@ class SpwRmapTCPNodeServer : public SpwRmapNodeBase {
       -> std::expected<std::monostate, std::error_code> override;
 };
 
-};  // namespace spw_rmap::internal
+};  // namespace spw_rmap

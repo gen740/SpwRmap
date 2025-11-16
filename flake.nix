@@ -71,7 +71,9 @@
                   pybind11-stubgen
                 ]
               ))
+              pkgs.python313Packages.venvShellHook
             ];
+            venvDir = "venv";
           };
 
           packages = {

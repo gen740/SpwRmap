@@ -5,6 +5,7 @@
 #include <spw_rmap/spw_rmap_node_base.hh>
 #include <spw_rmap/spw_rmap_tcp_node.hh>
 #include <spw_rmap/target_node.hh>
+#include <thread>
 
 #include "span_caster.hh"
 
@@ -31,12 +32,16 @@ struct PyTargetNodeBase : public spw_rmap::TargetNodeBase {
 struct PySpwRmapNodeBase : public spw_rmap::SpwRmapNodeBase {
   using spw_rmap::SpwRmapNodeBase::SpwRmapNodeBase;
 
-  auto poll() noexcept -> void override {
-    PYBIND11_OVERRIDE_PURE(void, spw_rmap::SpwRmapNodeBase, poll);
+  auto poll() noexcept
+      -> std::expected<std::monostate, std::error_code> override {
+    using R = std::expected<std::monostate, std::error_code>;
+    PYBIND11_OVERRIDE_PURE(R, spw_rmap::SpwRmapNodeBase, poll);
   }
 
-  auto runLoop() noexcept -> void override {
-    PYBIND11_OVERRIDE_PURE(void, spw_rmap::SpwRmapNodeBase, runLoop);
+  auto runLoop() noexcept
+      -> std::expected<std::monostate, std::error_code> override {
+    using R = std::expected<std::monostate, std::error_code>;
+    PYBIND11_OVERRIDE_PURE(R, spw_rmap::SpwRmapNodeBase, runLoop);
   }
 
   auto registerOnWrite(std::function<void(spw_rmap::Packet)>) noexcept
@@ -227,6 +232,16 @@ PYBIND11_MODULE(_core, m) {
           },
           py::arg("recv_timeout") = 100ms, py::arg("send_timeout") = 100ms,
           py::arg("connect_timeout") = 100ms)
+      .def("run_loop",
+           [](spw_rmap::SpwRmapTCPNode& self) -> void {
+             std::thread([&self] -> void {
+               auto res = self.runLoop();
+               if (!res) {
+                 py::gil_scoped_acquire gil;
+                 throw std::system_error(res.error());
+               }
+             }).detach();
+           })
       .def(
           "write",
           [](spw_rmap::SpwRmapTCPNode& self,
