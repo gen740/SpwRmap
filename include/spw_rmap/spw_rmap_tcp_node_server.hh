@@ -100,7 +100,14 @@ class SpwRmapTCPNodeServer : public SpwRmapNodeBase {
     }
   }
 
-  auto shutdown() { return tcp_server_->shutdown(); }
+  auto shutdown() noexcept -> std::expected<std::monostate, std::error_code> {
+    if (tcp_server_) {
+      auto res = tcp_server_->shutdown();
+      tcp_server_ = nullptr;
+      return res;
+    }
+    return {};
+  }
 
  private:
   auto recvExact_(std::span<uint8_t> buffer)
@@ -148,8 +155,7 @@ class SpwRmapTCPNodeServer : public SpwRmapNodeBase {
       -> std::expected<std::monostate, std::error_code>;
 
  public:
-  auto poll() noexcept
-      -> std::expected<bool, std::error_code> override;
+  auto poll() noexcept -> std::expected<bool, std::error_code> override;
 
   auto runLoop() noexcept
       -> std::expected<std::monostate, std::error_code> override;

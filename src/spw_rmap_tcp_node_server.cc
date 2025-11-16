@@ -178,6 +178,10 @@ auto SpwRmapTCPNodeServer::poll() noexcept
     return std::unexpected{res.error()};
   }
   if (res.value() == 0) {
+    auto res = tcp_server_->shutdown();
+    if (!res.has_value()) {
+      return std::unexpected{res.error()};
+    }
     return false;
   }
 

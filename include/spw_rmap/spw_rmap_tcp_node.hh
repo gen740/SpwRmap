@@ -90,7 +90,7 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
                std::chrono::microseconds send_timeout = 100ms,
                std::chrono::microseconds connect_timeout = 100ms)
       -> std::expected<std::monostate, std::error_code> {
-      std::cout << "Connecting to " << ip_address_ << ":" << port_ << "\n";
+    std::cout << "Connecting to " << ip_address_ << ":" << port_ << "\n";
     tcp_client_ = std::make_unique<internal::TCPClient>(ip_address_, port_);
     auto res =
         tcp_client_->connect(recv_timeout, send_timeout, connect_timeout);
@@ -103,7 +103,10 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
 
   auto shutdown() noexcept -> std::expected<std::monostate, std::error_code> {
     if (tcp_client_) {
-      return tcp_client_->shutdown();
+      auto res = tcp_client_->shutdown();
+      tcp_client_->disconnect();
+      tcp_client_ = nullptr;
+      return res;
     }
     return {};
   }
@@ -157,8 +160,7 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
   }
 
  public:
-  auto poll() noexcept
-      -> std::expected<bool, std::error_code> override;
+  auto poll() noexcept -> std::expected<bool, std::error_code> override;
 
   auto runLoop() noexcept
       -> std::expected<std::monostate, std::error_code> override;

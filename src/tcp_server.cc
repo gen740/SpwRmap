@@ -264,7 +264,7 @@ auto TCPServer::shutdown() noexcept
     return std::unexpected(
         std::make_error_code(std::errc::bad_file_descriptor));
   }
-  if (::shutdown(client_fd_, SHUT_RDWR) < 0) {
+  if (::shutdown(client_fd_, SHUT_WR) < 0) {
     return std::unexpected(std::error_code(errno, std::generic_category()));
   }
   return std::monostate{};
