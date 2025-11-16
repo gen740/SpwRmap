@@ -216,7 +216,13 @@ auto SpwRmapTCPNode::poll() noexcept -> std::expected<bool, std::error_code> {
     case PacketType::Read: {
       std::vector<uint8_t> data{};
       if (on_read_callback_) {
-        data = on_read_callback_(packet);
+        try {
+          data = on_read_callback_(packet);
+        } catch (const std::exception& e) {
+          std::cerr << "Exception in on_read_callback_: " << e.what() << "\n";
+          return std::unexpected{
+              std::make_error_code(std::errc::operation_canceled)};
+        }
       }
       if (data.size() != packet.dataLength) {
         std::cerr << "on_read_callback_ returned data with incorrect length: "
@@ -250,7 +256,13 @@ auto SpwRmapTCPNode::poll() noexcept -> std::expected<bool, std::error_code> {
     }
     case PacketType::Write: {
       if (on_write_callback_) {
-        on_write_callback_(packet);
+        try {
+          on_write_callback_(packet);
+        } catch (const std::exception& e) {
+          std::cerr << "Exception in on_write_callback_: " << e.what() << "\n";
+          return std::unexpected{
+              std::make_error_code(std::errc::operation_canceled)};
+        }
       }
       auto config = WriteReplyPacketConfig{
           .replyAddress = packet.replyAddress,
