@@ -64,7 +64,6 @@ auto SpwRmapTCPNodeServer::recvAndParseOnePacket_()
     if (res.value() == 0) {
       return 0;
     }
-
     if (header.at(0) != 0x00 && header.at(0) != 0x01 && header.at(0) != 0x02 &&
         header.at(0) != 0x31) {
       return std::unexpected{std::make_error_code(std::errc::bad_message)};
@@ -173,14 +172,19 @@ auto SpwRmapTCPNodeServer::poll() noexcept
     -> std::expected<bool, std::error_code> {
   auto res = recvAndParseOnePacket_();
   if (!res.has_value()) {
+    std::lock_guard<std::mutex> lock(shutdown_mtx_);
+    if (shutdowned_) {
+      return false;
+    }
     std::cerr << "Error in receiving/parsing packet: " << res.error().message()
               << "\n";
     return std::unexpected{res.error()};
   }
   if (res.value() == 0) {
-    auto res = tcp_server_->shutdown();
+    auto res = tcp_server_->closeClient();
     if (!res.has_value()) {
-      return std::unexpected{res.error()};
+      std::cerr << "Failed to close TCP client: " << res.error().message()
+                << "\n";
     }
     return false;
   }

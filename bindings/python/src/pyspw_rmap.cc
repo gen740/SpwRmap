@@ -51,7 +51,6 @@ class PySpwRmapTCPNode {
     thread_ = std::thread([this]() -> void {
       auto res = node_.runLoop();
       if (!res) {
-        py::gil_scoped_acquire gil;
         throw std::system_error(res.error());
       }
     });

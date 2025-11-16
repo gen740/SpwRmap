@@ -64,7 +64,6 @@ auto SpwRmapTCPNode::recvAndParseOnePacket_()
     if (res.value() == 0) {
       return 0;
     }
-
     if (header.at(0) != 0x00 && header.at(0) != 0x01 && header.at(0) != 0x02 &&
         header.at(0) != 0x31) {
       return std::unexpected{std::make_error_code(std::errc::bad_message)};
@@ -172,15 +171,17 @@ auto SpwRmapTCPNode::ignoreNBytes_(std::size_t n)
 auto SpwRmapTCPNode::poll() noexcept -> std::expected<bool, std::error_code> {
   auto res = recvAndParseOnePacket_();
   if (!res.has_value()) {
+    std::lock_guard<std::mutex> lock(shutdown_mtx_);
+    if (shutdowned_) {
+      return false;
+    }
     std::cerr << "Error in receiving/parsing packet: " << res.error().message()
               << "\n";
     return std::unexpected{res.error()};
   }
   if (res.value() == 0) {
-    auto res = tcp_client_->shutdown();
-    if (!res.has_value()) {
-      return std::unexpected{res.error()};
-    }
+    tcp_client_->disconnect();
+    tcp_client_ = nullptr;
     return false;
   }
 

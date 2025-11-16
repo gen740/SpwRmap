@@ -11,8 +11,6 @@ auto main() -> int {
       spw_rmap::SpwRmapTCPNodeConfig{.ip_address = "0.0.0.0", .port = "10030"};
 
   spw_rmap::SpwRmapTCPNodeServer server(config);
-  server.acceptOnce(0ms, 0ms);
-
   server.registerOnRead(
       [&gen](spw_rmap::Packet packet) noexcept -> std::vector<uint8_t> {
         std::vector<uint8_t> data(packet.dataLength);
@@ -34,7 +32,14 @@ auto main() -> int {
               << "\n";
   });
 
-  server.runLoop();
+  for (size_t i = 0; i < 10; ++i) {
+    server.acceptOnce(0ms, 0ms);
+    auto res = server.runLoop();
+    if (!res.has_value()) {
+      std::cerr << "Error in server run loop: " << res.error().message()
+                << "\n";
+    }
+  }
 
   return 0;
 }

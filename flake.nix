@@ -59,6 +59,7 @@
             packages = [
               pkgs.llvmPackages_21.clang-tools
               pkgs.llvmPackages_21.libcxxClang
+              pkgs.llvmPackages_21.lldb
               # pkgs.llvmPackages_21.pkgs.cmake
               pkgs.cmake
               pkgs.cmake-format

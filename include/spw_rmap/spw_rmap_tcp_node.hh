@@ -69,6 +69,9 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
   std::function<void(Packet)> on_write_callback_ = nullptr;
   std::function<std::vector<uint8_t>(Packet)> on_read_callback_ = nullptr;
 
+  std::mutex shutdown_mtx_;
+  bool shutdowned_ = false;
+
  public:
   explicit SpwRmapTCPNode(SpwRmapTCPNodeConfig config) noexcept
       : ip_address_(std::move(config.ip_address)),
@@ -90,10 +93,11 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
                std::chrono::microseconds send_timeout = 100ms,
                std::chrono::microseconds connect_timeout = 100ms)
       -> std::expected<std::monostate, std::error_code> {
-    std::cout << "Connecting to " << ip_address_ << ":" << port_ << "\n";
+    std::lock_guard<std::mutex> lock(shutdown_mtx_);
     tcp_client_ = std::make_unique<internal::TCPClient>(ip_address_, port_);
     auto res =
         tcp_client_->connect(recv_timeout, send_timeout, connect_timeout);
+    shutdowned_ = false;
     if (!res.has_value()) {
       tcp_client_->disconnect();
       return std::unexpected{res.error()};
@@ -102,11 +106,14 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
   }
 
   auto shutdown() noexcept -> std::expected<std::monostate, std::error_code> {
+    std::lock_guard<std::mutex> lock(shutdown_mtx_);
     if (tcp_client_) {
       auto res = tcp_client_->shutdown();
-      tcp_client_->disconnect();
+      shutdowned_ = true;
+      if (!res.has_value()) {
+        return std::unexpected{res.error()};
+      }
       tcp_client_ = nullptr;
-      return res;
     }
     return {};
   }

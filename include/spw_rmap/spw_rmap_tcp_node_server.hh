@@ -69,6 +69,9 @@ class SpwRmapTCPNodeServer : public SpwRmapNodeBase {
   std::function<void(Packet)> on_write_callback_ = nullptr;
   std::function<std::vector<uint8_t>(Packet)> on_read_callback_ = nullptr;
 
+  std::mutex shutdown_mtx_;
+  bool shutdowned_ = false;
+
  public:
   explicit SpwRmapTCPNodeServer(SpwRmapTCPNodeConfig config) noexcept
       : ip_address_(std::move(config.ip_address)),
@@ -93,18 +96,24 @@ class SpwRmapTCPNodeServer : public SpwRmapNodeBase {
 
   auto acceptOnce(std::chrono::microseconds send_timeout,
                   std::chrono::microseconds recv_timeout) {
+    std::lock_guard<std::mutex> lock(shutdown_mtx_);
     auto res = tcp_server_->accept_once(send_timeout, recv_timeout);
     if (!res.has_value()) {
       std::cerr << "Failed to accept TCP connection: " << res.error().message()
                 << "\n";
     }
+    shutdowned_ = false;
   }
 
   auto shutdown() noexcept -> std::expected<std::monostate, std::error_code> {
+    std::lock_guard<std::mutex> lock(shutdown_mtx_);
     if (tcp_server_) {
       auto res = tcp_server_->shutdown();
+      shutdowned_ = true;
+      if (!res.has_value()) {
+        return std::unexpected{res.error()};
+      }
       tcp_server_ = nullptr;
-      return res;
     }
     return {};
   }
