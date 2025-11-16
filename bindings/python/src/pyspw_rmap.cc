@@ -1,6 +1,7 @@
 #include <pybind11/chrono.h>
 #include <pybind11/stl.h>
 
+#include <chrono>
 #include <span>
 #include <spw_rmap/spw_rmap_node_base.hh>
 #include <spw_rmap/spw_rmap_tcp_node.hh>
@@ -67,17 +68,29 @@ class PySpwRmapTCPNode {
     }
   }
 
-  void read(PyTargetNode target_node, uint32_t memory_adderss,
-            std::vector<uint8_t>& data) {
+  auto read(PyTargetNode target_node, uint32_t memory_adderss,
+            uint32_t data_length) -> std::vector<uint8_t> {
+    std::vector<uint8_t> data(data_length);
     auto target_node_ptr = std::make_shared<spw_rmap::TargetNodeDynamic>(
         static_cast<uint8_t>(target_node.logical_address),
         std::move(target_node.target_spacewire_address),
         std::move(target_node.reply_address));
-    auto res = node_.read(target_node_ptr, memory_adderss,
-                          std::span<uint8_t>(data.data(), data.size()));
-    if (!res) {
-      throw std::system_error(res.error());
+    auto future = node_.readAsync(
+        target_node_ptr, memory_adderss, data.size(),
+        [&data](const spw_rmap::Packet& packet) noexcept -> void {
+          std::copy_n(packet.data.data(), data.size(), data.data());
+        });
+
+    if (future.wait_for(std::chrono::seconds(1)) ==
+        std::future_status::timeout) {
+      throw std::system_error(std::make_error_code(std::errc::timed_out));
+    } else {
+      auto res = future.get();
+      if (!res) {
+        throw std::system_error(res.error());
+      }
     }
+    return data;
   }
 
   void write(PyTargetNode target_node, uint32_t memory_adderss,
@@ -86,10 +99,18 @@ class PySpwRmapTCPNode {
         static_cast<uint8_t>(target_node.logical_address),
         std::move(target_node.target_spacewire_address),
         std::move(target_node.reply_address));
-    auto res = node_.write(target_node_ptr, memory_adderss,
-                           std::span<const uint8_t>(data.data(), data.size()));
-    if (!res) {
-      throw std::system_error(res.error());
+    auto future =
+        node_.writeAsync(target_node_ptr, memory_adderss,
+                         std::span<const uint8_t>(data.data(), data.size()),
+                         [](const spw_rmap::Packet&) noexcept -> void {});
+    if (future.wait_for(std::chrono::seconds(1)) ==
+        std::future_status::timeout) {
+      throw std::system_error(std::make_error_code(std::errc::timed_out));
+    } else {
+      auto res = future.get();
+      if (!res) {
+        throw std::system_error(res.error());
+      }
     }
   }
 
@@ -113,7 +134,7 @@ PYBIND11_MODULE(_core, m) {
       .def("start", &PySpwRmapTCPNode::start)
       .def("stop", &PySpwRmapTCPNode::stop)
       .def("read", &PySpwRmapTCPNode::read, py::arg("target_node"),
-           py::arg("memory_address"), py::arg("data"))
+           py::arg("memory_address"), py::arg("data_length"))
       .def("write", &PySpwRmapTCPNode::write, py::arg("target_node"),
            py::arg("memory_address"), py::arg("data"));
 }
