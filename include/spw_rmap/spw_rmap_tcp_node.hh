@@ -49,6 +49,8 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
   internal::ThreadPool recv_thread_pool_{4};  // thread-safe
 
   std::vector<uint8_t> recv_buf_ = {};
+
+  std::recursive_mutex send_buf_mtx_;
   std::vector<uint8_t> send_buf_ = {};
 
   std::vector<std::function<void(Packet)>> reply_callback_ = {};

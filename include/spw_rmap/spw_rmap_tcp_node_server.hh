@@ -8,6 +8,7 @@
 #include <future>
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -50,6 +51,7 @@ class SpwRmapTCPNodeServer : public SpwRmapNodeBase {
 
   std::vector<uint8_t> recv_buf_ = {};
   std::vector<uint8_t> send_buf_ = {};
+  std::recursive_mutex send_buf_mtx_;
 
   std::vector<std::function<void(Packet)>> reply_callback_ = {};
   std::vector<std::unique_ptr<std::mutex>> reply_callback_mtx_;

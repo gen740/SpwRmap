@@ -270,6 +270,7 @@ auto SpwRmapTCPNodeServer::poll() noexcept
           .incrementMode = true,
       };
       ReadReplyPacketBuilder builder;
+      std::lock_guard<std::recursive_mutex> lock(send_buf_mtx_);
       auto send_buffer = std::span(send_buf_);
       if (buffer_policy_ == BufferPolicy::Fixed) {
         if (builder.getTotalSize(config) + 12 > send_buffer.size()) {
@@ -318,6 +319,7 @@ auto SpwRmapTCPNodeServer::poll() noexcept
           .verifyMode = true,
       };
       WriteReplyPacketBuilder builder;
+      std::lock_guard<std::recursive_mutex> lock(send_buf_mtx_);
       auto send_buffer = std::span(send_buf_);
       if (buffer_policy_ == BufferPolicy::Fixed) {
         if (builder.getTotalSize(config) + 12 > send_buffer.size()) {
@@ -398,6 +400,7 @@ auto SpwRmapTCPNodeServer::sendWritePacket_(
   auto expected_length = target_node->getTargetSpaceWireAddress().size() +
                          (target_node->getReplyAddress().size() + 3) / 4 * 4 +
                          4 + 12 + 1 + data.size();
+  std::lock_guard<std::recursive_mutex> lock(send_buf_mtx_);
   auto send_buffer = std::span(send_buf_);
   if (expected_length > send_buffer.size()) {
     if (buffer_policy_ == BufferPolicy::Fixed) {
@@ -441,6 +444,7 @@ auto SpwRmapTCPNodeServer::sendReadPacket_(
   auto expected_length = target_node->getTargetSpaceWireAddress().size() +
                          (target_node->getReplyAddress().size() + 3) / 4 * 4 +
                          4 + 12 + 1;
+  std::lock_guard<std::recursive_mutex> lock(send_buf_mtx_);
   auto send_buffer = std::span(send_buf_);
   if (expected_length > send_buffer.size()) {
     if (buffer_policy_ == BufferPolicy::Fixed) {
