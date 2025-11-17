@@ -12,7 +12,6 @@
 #include <chrono>
 #include <cstdint>
 #include <cstring>
-#include <iostream>
 #include <span>
 #include <string>
 #include <system_error>

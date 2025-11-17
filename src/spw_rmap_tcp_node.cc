@@ -240,6 +240,18 @@ auto SpwRmapTCPNode::poll() noexcept -> std::expected<bool, std::error_code> {
       };
       ReadReplyPacketBuilder builder;
       auto send_buffer = std::span(send_buf_);
+      if (buffer_policy_ == BufferPolicy::Fixed) {
+        if (builder.getTotalSize(config) + 12 > send_buffer.size()) {
+          std::cerr << "Send buffer too small for Read Reply Packet\n";
+          return std::unexpected{
+              std::make_error_code(std::errc::no_buffer_space)};
+        }
+      } else {
+        if (builder.getTotalSize(config) + 12 > send_buffer.size()) {
+          send_buf_.resize(builder.getTotalSize(config) + 12);
+          send_buffer = std::span(send_buf_);
+        }
+      }
       auto build_res = builder.build(config, send_buffer.subspan(12));
       if (!build_res.has_value()) {
         std::cerr << "Failed to build Write Reply Packet: "
@@ -276,6 +288,18 @@ auto SpwRmapTCPNode::poll() noexcept -> std::expected<bool, std::error_code> {
       };
       WriteReplyPacketBuilder builder;
       auto send_buffer = std::span(send_buf_);
+      if (buffer_policy_ == BufferPolicy::Fixed) {
+        if (builder.getTotalSize(config) + 12 > send_buffer.size()) {
+          std::cerr << "Send buffer too small for Write Reply Packet\n";
+          return std::unexpected{
+              std::make_error_code(std::errc::no_buffer_space)};
+        }
+      } else {
+        if (builder.getTotalSize(config) + 12 > send_buffer.size()) {
+          send_buf_.resize(builder.getTotalSize(config) + 12);
+          send_buffer = std::span(send_buf_);
+        }
+      }
       auto build_res = builder.build(config, send_buffer.subspan(12));
       if (!build_res.has_value()) {
         std::cerr << "Failed to build Write Reply Packet: "
