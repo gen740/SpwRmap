@@ -225,6 +225,7 @@ auto TCPServer::setSendTimeout(std::chrono::microseconds timeout) noexcept
 
 auto TCPServer::sendAll(std::span<const uint8_t> data) noexcept
     -> std::expected<std::monostate, std::error_code> {
+  std::lock_guard<std::mutex> lock(send_mtx_);
   while (!data.empty()) {
 #ifndef __APPLE__
     constexpr int kFlags = MSG_NOSIGNAL;
@@ -253,6 +254,7 @@ auto TCPServer::sendAll(std::span<const uint8_t> data) noexcept
 
 auto TCPServer::recvSome(std::span<uint8_t> buf) noexcept
     -> std::expected<size_t, std::error_code> {
+  std::lock_guard<std::mutex> lock(recv_mtx_);
   if (buf.empty()) {
     return 0U;
   }

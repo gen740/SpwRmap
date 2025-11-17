@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstdint>
 #include <expected>
+#include <mutex>
 #include <span>
 
 namespace spw_rmap::internal {
@@ -19,6 +20,9 @@ class TCPServer {
   static auto close_retry_(int fd) noexcept -> void;
   std::string_view bind_address_;
   std::string_view port_;
+
+  std::mutex send_mtx_;
+  std::mutex recv_mtx_;
 
  public:
   TCPServer() = delete;

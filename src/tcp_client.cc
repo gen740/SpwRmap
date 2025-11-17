@@ -272,6 +272,7 @@ auto TCPClient::setSendTimeout(std::chrono::microseconds timeout) noexcept
 
 auto TCPClient::sendAll(std::span<const uint8_t> data) noexcept
     -> std::expected<std::monostate, std::error_code> {
+  std::lock_guard<std::mutex> lock(send_mtx_);
   if (fd_ < 0) {
     spw_rmap::debug::debug("Not connected");
     return std::unexpected{std::make_error_code(std::errc::not_connected)};
@@ -335,6 +336,7 @@ auto TCPClient::sendAll(std::span<const uint8_t> data) noexcept
 
 auto TCPClient::recvSome(std::span<uint8_t> buf) noexcept
     -> std::expected<size_t, std::error_code> {
+  std::lock_guard<std::mutex> lock(recv_mtx_);
   if (buf.empty()) {
     return 0U;  // Nothing to receive
   }

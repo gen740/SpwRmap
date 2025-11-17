@@ -26,7 +26,9 @@ class TCPClient {
   static auto close_retry_(int fd) noexcept -> void;
   std::string_view ip_address_;
   std::string_view port_;
-  std::mutex mtx_;
+
+  std::mutex send_mtx_;
+  std::mutex recv_mtx_;
 
  public:
   TCPClient() = delete;
