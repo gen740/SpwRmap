@@ -69,7 +69,7 @@ auto SpwRmapTCPNodeServer::recvAndParseOnePacket_()
       return 0;
     }
     if (header.at(0) != 0x00 && header.at(0) != 0x01 && header.at(0) != 0x02 &&
-        header.at(0) != 0x31) {
+        header.at(0) != 0x30) {
       spw_rmap::debug::debug("Received packet with invalid type byte: ",
                              static_cast<int>(header.at(0)));
       return std::unexpected{std::make_error_code(std::errc::bad_message)};
@@ -127,7 +127,7 @@ auto SpwRmapTCPNodeServer::recvAndParseOnePacket_()
         total_size += *res;
         recv_buffer = recv_buffer.subspan(*dataLength);
       } break;
-      case 0x31: {
+      case 0x30: {
         // Timecode packet
         if (header.at(2) != 0x00 || header.at(3) != 0x00 ||
             header.at(4) != 0x00 || header.at(5) != 0x00 ||
