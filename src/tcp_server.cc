@@ -16,6 +16,8 @@
 #include <string>
 #include <system_error>
 
+#include "spw_rmap/internal/debug.hh"
+
 namespace spw_rmap::internal {
 
 static inline auto set_listening_sockopt(int fd)
@@ -29,6 +31,7 @@ static inline auto set_listening_sockopt(int fd)
   // CLOEXEC for listen fd as well.
   const int fdflags = ::fcntl(fd, F_GETFD);
   if (fdflags < 0 || ::fcntl(fd, F_SETFD, fdflags | FD_CLOEXEC) < 0) {
+    spw_rmap::debug::debug("Failed to set FD_CLOEXEC on listening socket");
     return std::unexpected{std::error_code(errno, std::system_category())};
   }
   return {};
@@ -39,17 +42,20 @@ static inline auto server_set_sockopts(int fd)
   int yes = 1;
   // Disable Nagle for latency-sensitive traffic.
   if (::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes)) != 0) {
+    spw_rmap::debug::debug("Failed to set TCP_NODELAY");
     return std::unexpected{std::error_code(errno, std::system_category())};
   }
 #ifdef __APPLE__
   // Avoid SIGPIPE on write-side errors.
   if (::setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &yes, sizeof(yes)) != 0) {
+    spw_rmap::debug::debug("Failed to set SO_NOSIGPIPE");
     return std::unexpected{std::error_code(errno, std::system_category())};
   }
 #endif
   // Ensure close-on-exec (harmless if already set).
   const int fdflags = ::fcntl(fd, F_GETFD);
   if (fdflags < 0 || ::fcntl(fd, F_SETFD, fdflags | FD_CLOEXEC) < 0) {
+    spw_rmap::debug::debug("Failed to set FD_CLOEXEC on server socket");
     return std::unexpected{std::error_code(errno, std::system_category())};
   }
   return {};
@@ -92,6 +98,7 @@ auto TCPServer::accept_once(std::chrono::microseconds send_timeout,
   if (int rc = ::getaddrinfo(std::string(bind_address_).c_str(),
                              std::string(port_).c_str(), &hints, &res);
       rc != 0) {
+    spw_rmap::debug::debug("getaddrinfo error: ", ::gai_strerror(rc));
     return std::unexpected{std::error_code(rc, gai_category())};
   }
   std::expected<std::monostate, std::error_code> last =
@@ -100,6 +107,7 @@ auto TCPServer::accept_once(std::chrono::microseconds send_timeout,
   for (addrinfo* ai = res; ai != nullptr; ai = ai->ai_next) {
     listen_fd_ = ::socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
     if (listen_fd_ < 0) {
+      spw_rmap::debug::debug("Failed to create listening socket");
       last = std::unexpected{std::error_code(errno, std::system_category())};
       continue;
     }
@@ -150,6 +158,8 @@ auto TCPServer::accept_once(std::chrono::microseconds send_timeout,
                  listen_fd_ = -1;
                  close_retry_(client_fd_);
                  client_fd_ = -1;
+                 spw_rmap::debug::debug(
+                     "Failed to set socket options on accepted socket");
                  return std::unexpected{ec};
                });
   }
@@ -173,6 +183,7 @@ TCPServer::~TCPServer() noexcept {
 auto TCPServer::setRecvTimeout(std::chrono::microseconds timeout) noexcept
     -> std::expected<std::monostate, std::error_code> {
   if (timeout < std::chrono::microseconds::zero()) {
+    spw_rmap::debug::debug("Negative timeout value");
     return std::unexpected{std::make_error_code(std::errc::invalid_argument)};
   }
 
@@ -185,6 +196,7 @@ auto TCPServer::setRecvTimeout(std::chrono::microseconds timeout) noexcept
   tv.tv_usec = tv_usec;
 
   if (::setsockopt(client_fd_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) != 0) {
+    spw_rmap::debug::debug("Failed to set receive timeout");
     return std::unexpected{std::error_code(errno, std::system_category())};
   }
   return {};
@@ -193,6 +205,7 @@ auto TCPServer::setRecvTimeout(std::chrono::microseconds timeout) noexcept
 auto TCPServer::setSendTimeout(std::chrono::microseconds timeout) noexcept
     -> std::expected<std::monostate, std::error_code> {
   if (timeout < std::chrono::microseconds::zero()) {
+    spw_rmap::debug::debug("Negative timeout value");
     return std::unexpected{std::make_error_code(std::errc::invalid_argument)};
   }
   const auto tv_sec = static_cast<time_t>(
@@ -204,6 +217,7 @@ auto TCPServer::setSendTimeout(std::chrono::microseconds timeout) noexcept
   tv.tv_usec = tv_usec;
 
   if (::setsockopt(client_fd_, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) != 0) {
+    spw_rmap::debug::debug("Failed to set send timeout");
     return std::unexpected{std::error_code(errno, std::system_category())};
   }
   return {};
@@ -223,8 +237,10 @@ auto TCPServer::sendAll(std::span<const uint8_t> data) noexcept
         continue;
       }
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        spw_rmap::debug::debug("Send would block, timing out");
         return std::unexpected{std::make_error_code(std::errc::timed_out)};
       }
+      spw_rmap::debug::debug("Send failed");
       return std::unexpected{std::error_code(errno, std::system_category())};
     }
     if (n == 0) {
@@ -247,8 +263,10 @@ auto TCPServer::recvSome(std::span<uint8_t> buf) noexcept
         continue;
       }
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        spw_rmap::debug::debug("Receive would block, timing out");
         return std::unexpected{std::make_error_code(std::errc::timed_out)};
       }
+      spw_rmap::debug::debug("Receive failed");
       return std::unexpected{std::error_code(errno, std::system_category())};
     }
     return static_cast<std::size_t>(n);  // 0 -> EOF
@@ -258,10 +276,12 @@ auto TCPServer::recvSome(std::span<uint8_t> buf) noexcept
 auto TCPServer::shutdown() noexcept
     -> std::expected<std::monostate, std::error_code> {
   if (client_fd_ < 0) {
+    spw_rmap::debug::debug("Client socket not connected");
     return std::unexpected(
         std::make_error_code(std::errc::bad_file_descriptor));
   }
   if (::shutdown(client_fd_, SHUT_RDWR) < 0) {
+    spw_rmap::debug::debug("Failed to shutdown client socket");
     return std::unexpected(std::error_code(errno, std::generic_category()));
   }
   return std::monostate{};
@@ -270,6 +290,7 @@ auto TCPServer::shutdown() noexcept
 auto TCPServer::closeClient() noexcept
     -> std::expected<std::monostate, std::error_code> {
   if (client_fd_ < 0) {
+    spw_rmap::debug::debug("Client socket not connected");
     return std::unexpected(
         std::make_error_code(std::errc::bad_file_descriptor));
   }
@@ -280,6 +301,7 @@ auto TCPServer::closeClient() noexcept
   } while (r < 0 && errno == EINTR);
 
   if (r < 0) {
+    spw_rmap::debug::debug("Failed to close client socket");
     return std::unexpected(std::error_code(errno, std::system_category()));
   }
 

@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "spw_rmap/crc.hh"
+#include "spw_rmap/internal/debug.hh"
 #include "spw_rmap/rmap_packet_type.hh"
 
 namespace spw_rmap {
@@ -21,6 +22,7 @@ auto ReadPacketBuilder::build(const ReadPacketConfig& config,
                               std::span<uint8_t> out) noexcept
     -> std::expected<size_t, std::error_code> {
   if (out.size() < getTotalSize(config)) {
+    spw_rmap::debug::debug("ReadPacketBuilder::build: Buffer too small");
     return std::unexpected{std::make_error_code(std::errc::no_buffer_space)};
   }
   auto head = 0;
@@ -80,6 +82,7 @@ auto WritePacketBuilder::build(const WritePacketConfig& config,
                                std::span<uint8_t> out) noexcept
     -> std::expected<size_t, std::error_code> {
   if (out.size() < getTotalSize(config)) {
+    spw_rmap::debug::debug("WritePacketBuilder::build: Buffer too small");
     return std::unexpected{std::make_error_code(std::errc::no_buffer_space)};
   }
   auto head = 0;
@@ -156,6 +159,7 @@ auto WriteReplyPacketBuilder::build(const WriteReplyPacketConfig& config,
                                     std::span<uint8_t> out) noexcept
     -> std::expected<size_t, std::error_code> {
   if (out.size() < getTotalSize(config)) {
+    spw_rmap::debug::debug("WriteReplyPacketBuilder::build: Buffer too small");
     return std::unexpected{std::make_error_code(std::errc::no_buffer_space)};
   }
   auto head = 0;
@@ -196,6 +200,7 @@ auto ReadReplyPacketBuilder::build(const ReadReplyPacketConfig& config,
                                    std::span<uint8_t> out) noexcept
     -> std::expected<size_t, std::error_code> {
   if (out.size() < getTotalSize(config)) {
+    spw_rmap::debug::debug("ReadReplyPacketBuilder::build: Buffer too small");
     return std::unexpected{std::make_error_code(std::errc::no_buffer_space)};
   }
   auto head = 0;

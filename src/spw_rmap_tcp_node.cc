@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include "spw_rmap/error_code.hh"
+#include "spw_rmap/internal/debug.hh"
 
 namespace spw_rmap {
 
@@ -12,6 +13,7 @@ using namespace std::chrono_literals;
 auto SpwRmapTCPNode::recvExact_(std::span<uint8_t> buffer)
     -> std::expected<std::size_t, std::error_code> {
   if (!tcp_client_) {
+    spw_rmap::debug::debug(" Not connected");
     return std::unexpected{std::make_error_code(std::errc::not_connected)};
   }
   size_t total_length = buffer.size();
@@ -32,6 +34,7 @@ static inline auto calculateDataLength(
     const std::span<const uint8_t> header) noexcept
     -> std::expected<size_t, std::error_code> {
   if (header.size() < 12) {
+    spw_rmap::debug::debug("Header size less than 12 bytes");
     return std::unexpected{std::make_error_code(std::errc::invalid_argument)};
   }
   std::ignore /* extra_length */ = (static_cast<uint16_t>(header[2]) << 8) |
@@ -50,6 +53,7 @@ static inline auto calculateDataLength(
 auto SpwRmapTCPNode::recvAndParseOnePacket_()
     -> std::expected<std::size_t, std::error_code> {
   if (!tcp_client_) {
+    spw_rmap::debug::debug("Not connected");
     return std::unexpected{std::make_error_code(std::errc::not_connected)};
   }
   size_t total_size = 0;
@@ -66,26 +70,29 @@ auto SpwRmapTCPNode::recvAndParseOnePacket_()
     }
     if (header.at(0) != 0x00 && header.at(0) != 0x01 && header.at(0) != 0x02 &&
         header.at(0) != 0x31) {
-      std::cerr << "Received packet with invalid type: "
-                << static_cast<int>(header.at(0)) << "\n";
+      spw_rmap::debug::debug("Received packet with invalid type byte: ",
+                             static_cast<int>(header.at(0)));
       return std::unexpected{std::make_error_code(std::errc::bad_message)};
     }
     if (header.at(1) != 0x00) {
-      std::cerr << "Received packet with invalid reserved byte: "
-                << static_cast<int>(header.at(1)) << "\n";
+      spw_rmap::debug::debug("Received packet with invalid reserved byte: ",
+                             static_cast<int>(header.at(1)));
       return std::unexpected{std::make_error_code(std::errc::bad_message)};
     }
 
     auto dataLength = calculateDataLength(header);
     if (!dataLength.has_value()) {
+      spw_rmap::debug::debug("Failed to calculate data length from header");
       return std::unexpected(dataLength.error());
     }
     if (*dataLength == 0) {
-      std::cerr << "Received packet with zero data length\n";
+      spw_rmap::debug::debug("Received packet with zero data length");
       return std::unexpected{std::make_error_code(std::errc::bad_message)};
     }
     if (*dataLength > recv_buffer.size()) {
       if (buffer_policy_ == BufferPolicy::Fixed) {
+        spw_rmap::debug::debug(
+            "Receive buffer too small for incoming packet data");
         return std::unexpected{
             std::make_error_code(std::errc::no_buffer_space)};
       } else {
@@ -97,6 +104,7 @@ auto SpwRmapTCPNode::recvAndParseOnePacket_()
       case 0x00: {
         auto res = recvExact_(recv_buffer.first(*dataLength));
         if (!res.has_value()) {
+          spw_rmap::debug::debug("Failed to receive packet data of type 0x00");
           return std::unexpected(res.error());
         }
         total_size += *res;
@@ -105,6 +113,7 @@ auto SpwRmapTCPNode::recvAndParseOnePacket_()
       case 0x01: {
         auto res = ignoreNBytes_(*dataLength);
         if (!res.has_value()) {
+          spw_rmap::debug::debug("Failed to ignore packet data of type 0x01");
           return std::unexpected(res.error());
         }
         return {};
@@ -112,6 +121,7 @@ auto SpwRmapTCPNode::recvAndParseOnePacket_()
       case 0x02: {
         auto res = recvExact_(recv_buffer.first(*dataLength));
         if (!res.has_value()) {
+          spw_rmap::debug::debug("Failed to receive packet data of type 0x02");
           return std::unexpected(res.error());
         }
         total_size += *res;
@@ -124,25 +134,29 @@ auto SpwRmapTCPNode::recvAndParseOnePacket_()
             header.at(6) != 0x00 || header.at(7) != 0x00 ||
             header.at(8) != 0x00 || header.at(9) != 0x00 ||
             header.at(10) != 0x00 || header.at(11) != 0x02) {
-          std::cerr << "Received invalid Timecode packet\n";
+          spw_rmap::debug::debug("Received invalid Timecode packet header");
           return std::unexpected{std::make_error_code(std::errc::bad_message)};
         }
         std::array<uint8_t, 2> tc{};
         auto res = recvExact_(tc);
         if (!res.has_value()) {
+          spw_rmap::debug::debug("Failed to receive Timecode packet data");
           return std::unexpected(res.error());
         }
         if (tc.at(1) != 0x00) {
-          std::cerr << "Received invalid Timecode packet\n";
+          spw_rmap::debug::debug("Received invalid Timecode packet data");
           return std::unexpected{std::make_error_code(std::errc::bad_message)};
         }
       } break;
       default:
+        spw_rmap::debug::debug("Received packet with unknown type byte: ",
+                               static_cast<int>(header.at(0)));
         return std::unexpected{std::make_error_code(std::errc::bad_message)};
     }
   }
   auto status = packet_parser_.parse(std::span(recv_buf_).first(total_size));
   if (status != PacketParser::Status::Success) {
+    spw_rmap::debug::debug("Failed to parse received packet");
     return std::unexpected{make_error_code(status)};
   }
   return total_size;
@@ -151,6 +165,7 @@ auto SpwRmapTCPNode::recvAndParseOnePacket_()
 auto SpwRmapTCPNode::ignoreNBytes_(std::size_t n)
     -> std::expected<std::size_t, std::error_code> {
   if (!tcp_client_) {
+    spw_rmap::debug::debug("Not connected");
     return std::unexpected{std::make_error_code(std::errc::not_connected)};
   }
   const size_t requested_size = n;
@@ -158,9 +173,11 @@ auto SpwRmapTCPNode::ignoreNBytes_(std::size_t n)
   while (n > ignore_buffer.size()) {
     auto res = tcp_client_->recvSome(ignore_buffer);
     if (!res.has_value()) {
+      spw_rmap::debug::debug("Failed to receive data to ignore");
       return std::unexpected{res.error()};
     }
     if (res.value() == 0) {
+      spw_rmap::debug::debug("Connection closed while ignoring data");
       return std::unexpected{
           std::make_error_code(std::errc::connection_aborted)};
     }
@@ -169,6 +186,7 @@ auto SpwRmapTCPNode::ignoreNBytes_(std::size_t n)
   if (n > 0) {
     auto res = recvExact_(std::span(ignore_buffer).first(n));
     if (!res.has_value()) {
+      spw_rmap::debug::debug("Failed to receive data to ignore");
       return std::unexpected{res.error()};
     }
   }
@@ -182,8 +200,9 @@ auto SpwRmapTCPNode::poll() noexcept -> std::expected<bool, std::error_code> {
     if (shutdowned_) {
       return false;
     }
-    std::cerr << "Error in receiving/parsing packet: " << res.error().message()
-              << "\n";
+    spw_rmap::debug::debug(
+        "SpwRmapTCPNode::poll: Error in receiving/parsing packet: ",
+        res.error().message());
     return std::unexpected{res.error()};
   }
   if (res.value() == 0) {
@@ -199,8 +218,9 @@ auto SpwRmapTCPNode::poll() noexcept -> std::expected<bool, std::error_code> {
     case PacketType::WriteReply: {
       if (packet.transactionID < transaction_id_min_ ||
           packet.transactionID >= transaction_id_max_) {
-        std::cerr << "Received packet with out-of-range Transaction ID: "
-                  << packet.transactionID << "\n";
+        spw_rmap::debug::debug(
+            "Received packet with out-of-range Transaction ID: ",
+            packet.transactionID);
         return std::unexpected{std::make_error_code(std::errc::bad_message)};
       }
       auto res = recv_thread_pool_.post([this, packet]() noexcept -> void {
@@ -226,7 +246,7 @@ auto SpwRmapTCPNode::poll() noexcept -> std::expected<bool, std::error_code> {
         try {
           data = on_read_callback_(packet);
         } catch (const std::exception& e) {
-          std::cerr << "Exception in on_read_callback_: " << e.what() << "\n";
+          spw_rmap::debug::debug("Exception in on_read_callback_: ", e.what());
           return std::unexpected{
               std::make_error_code(std::errc::operation_canceled)};
         }
@@ -249,7 +269,7 @@ auto SpwRmapTCPNode::poll() noexcept -> std::expected<bool, std::error_code> {
       auto send_buffer = std::span(send_buf_);
       if (buffer_policy_ == BufferPolicy::Fixed) {
         if (builder.getTotalSize(config) + 12 > send_buffer.size()) {
-          std::cerr << "Send buffer too small for Read Reply Packet\n";
+          spw_rmap::debug::debug("Send buffer too small for Read Reply Packet");
           return std::unexpected{
               std::make_error_code(std::errc::no_buffer_space)};
         }
@@ -261,14 +281,14 @@ auto SpwRmapTCPNode::poll() noexcept -> std::expected<bool, std::error_code> {
       }
       auto build_res = builder.build(config, send_buffer.subspan(12));
       if (!build_res.has_value()) {
-        std::cerr << "Failed to build Write Reply Packet: "
-                  << build_res.error().message() << "\n";
+        spw_rmap::debug::debug("Failed to build Read Reply Packet: ",
+                               build_res.error().message());
         return std::unexpected{build_res.error()};
       }
       auto send_res = send_(builder.getTotalSize(config));
       if (!send_res.has_value()) {
-        std::cerr << "Failed to send Write Reply Packet: "
-                  << send_res.error().message() << "\n";
+        spw_rmap::debug::debug("Failed to send Read Reply Packet: ",
+                               send_res.error().message());
         return std::unexpected{send_res.error()};
       }
       break;
@@ -278,7 +298,7 @@ auto SpwRmapTCPNode::poll() noexcept -> std::expected<bool, std::error_code> {
         try {
           on_write_callback_(packet);
         } catch (const std::exception& e) {
-          std::cerr << "Exception in on_write_callback_: " << e.what() << "\n";
+          spw_rmap::debug::debug("Exception in on_write_callback_: ", e.what());
           return std::unexpected{
               std::make_error_code(std::errc::operation_canceled)};
         }
@@ -297,7 +317,8 @@ auto SpwRmapTCPNode::poll() noexcept -> std::expected<bool, std::error_code> {
       auto send_buffer = std::span(send_buf_);
       if (buffer_policy_ == BufferPolicy::Fixed) {
         if (builder.getTotalSize(config) + 12 > send_buffer.size()) {
-          std::cerr << "Send buffer too small for Write Reply Packet\n";
+          spw_rmap::debug::debug(
+              "Send buffer too small for Write Reply Packet");
           return std::unexpected{
               std::make_error_code(std::errc::no_buffer_space)};
         }
@@ -315,8 +336,8 @@ auto SpwRmapTCPNode::poll() noexcept -> std::expected<bool, std::error_code> {
       }
       auto send_res = send_(builder.getTotalSize(config));
       if (!send_res.has_value()) {
-        std::cerr << "Failed to send Write Reply Packet: "
-                  << send_res.error().message() << "\n";
+        spw_rmap::debug::debug("Failed to send Write Reply Packet: ",
+                               send_res.error().message());
         return std::unexpected{send_res.error()};
       }
       break;
@@ -333,6 +354,7 @@ auto SpwRmapTCPNode::runLoop() noexcept
   while (running_.load()) {
     auto res = poll();
     if (!res.has_value()) {
+      spw_rmap::debug::debug("Error in poll(): ", res.error().message());
       return std::unexpected{res.error()};
     }
     if (!res.value()) {
@@ -365,6 +387,7 @@ auto SpwRmapTCPNode::sendWritePacket_(
     uint32_t memory_address, const std::span<const uint8_t> data) noexcept
     -> std::expected<std::monostate, std::error_code> {
   if (!tcp_client_) {
+    spw_rmap::debug::debug("SpwRmapTCPNode::sendWritePacket_: Not connected");
     return std::unexpected{std::make_error_code(std::errc::not_connected)};
   }
   auto expected_length = target_node->getTargetSpaceWireAddress().size() +
@@ -373,6 +396,7 @@ auto SpwRmapTCPNode::sendWritePacket_(
   auto send_buffer = std::span(send_buf_);
   if (expected_length > send_buffer.size()) {
     if (buffer_policy_ == BufferPolicy::Fixed) {
+      spw_rmap::debug::debug("Send buffer too small for Write Packet");
       return std::unexpected{std::make_error_code(std::errc::no_buffer_space)};
     } else {
       send_buf_.resize(expected_length);
@@ -393,6 +417,8 @@ auto SpwRmapTCPNode::sendWritePacket_(
 
   auto res = write_packet_builder_.build(config, send_buffer.subspan(12));
   if (!res.has_value()) {
+    spw_rmap::debug::debug("Failed to build Write Packet: ",
+                           res.error().message());
     return std::unexpected{res.error()};
   }
   return send_(write_packet_builder_.getTotalSize(config));
@@ -403,6 +429,7 @@ auto SpwRmapTCPNode::sendReadPacket_(
     uint32_t memory_address, uint32_t data_length) noexcept
     -> std::expected<std::monostate, std::error_code> {
   if (!tcp_client_) {
+    spw_rmap::debug::debug("SpwRmapTCPNode::sendReadPacket_: Not connected");
     return std::unexpected{std::make_error_code(std::errc::not_connected)};
   }
   auto expected_length = target_node->getTargetSpaceWireAddress().size() +
@@ -411,6 +438,7 @@ auto SpwRmapTCPNode::sendReadPacket_(
   auto send_buffer = std::span(send_buf_);
   if (expected_length > send_buffer.size()) {
     if (buffer_policy_ == BufferPolicy::Fixed) {
+      spw_rmap::debug::debug("Send buffer too small for Read Packet");
       return std::unexpected{std::make_error_code(std::errc::no_buffer_space)};
     } else {
       send_buf_.resize(expected_length);
@@ -431,10 +459,13 @@ auto SpwRmapTCPNode::sendReadPacket_(
 
   auto res = read_packet_builder_.build(config, send_buffer.subspan(12));
   if (!res.has_value()) {
+    spw_rmap::debug::debug("Failed to build Read Packet: ",
+                           res.error().message());
     return std::unexpected{res.error()};
   }
   if (send_buffer.size() < read_packet_builder_.getTotalSize(config) + 12) {
     if (buffer_policy_ == BufferPolicy::Fixed) {
+      spw_rmap::debug::debug("Send buffer too small for Read Packet");
       return std::unexpected{std::make_error_code(std::errc::no_buffer_space)};
     } else {
       send_buf_.resize(read_packet_builder_.getTotalSize(config) + 12);
@@ -458,6 +489,8 @@ auto SpwRmapTCPNode::writeAsync(                  //
   {
     auto transaction_id_res = getAvailableTransactionID_();
     if (!transaction_id_res.has_value()) {
+      spw_rmap::debug::debug(
+          "Failed to get available Transaction ID for writeAsync");
       promise->set_value(std::unexpected{transaction_id_res.error()});
       return future;
     }
@@ -547,6 +580,7 @@ auto SpwRmapTCPNode::read(
 auto SpwRmapTCPNode::emitTimeCode(uint8_t timecode) noexcept
     -> std::expected<std::monostate, std::error_code> {
   if (!tcp_client_) {
+    spw_rmap::debug::debug("SpwRmapTCPNode::emitTimeCode: Not connected");
     return std::unexpected{std::make_error_code(std::errc::not_connected)};
   }
   std::array<uint8_t, 14> packet{};
