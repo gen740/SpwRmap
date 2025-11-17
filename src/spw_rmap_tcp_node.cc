@@ -66,9 +66,13 @@ auto SpwRmapTCPNode::recvAndParseOnePacket_()
     }
     if (header.at(0) != 0x00 && header.at(0) != 0x01 && header.at(0) != 0x02 &&
         header.at(0) != 0x31) {
+      std::cerr << "Received packet with invalid type: "
+                << static_cast<int>(header.at(0)) << "\n";
       return std::unexpected{std::make_error_code(std::errc::bad_message)};
     }
     if (header.at(1) != 0x00) {
+      std::cerr << "Received packet with invalid reserved byte: "
+                << static_cast<int>(header.at(1)) << "\n";
       return std::unexpected{std::make_error_code(std::errc::bad_message)};
     }
 
@@ -77,6 +81,7 @@ auto SpwRmapTCPNode::recvAndParseOnePacket_()
       return std::unexpected(dataLength.error());
     }
     if (*dataLength == 0) {
+      std::cerr << "Received packet with zero data length\n";
       return std::unexpected{std::make_error_code(std::errc::bad_message)};
     }
     if (*dataLength > recv_buffer.size()) {
@@ -102,7 +107,7 @@ auto SpwRmapTCPNode::recvAndParseOnePacket_()
         if (!res.has_value()) {
           return std::unexpected(res.error());
         }
-        return std::unexpected{std::make_error_code(std::errc::bad_message)};
+        return {};
       } break;
       case 0x02: {
         auto res = recvExact_(recv_buffer.first(*dataLength));
@@ -119,6 +124,7 @@ auto SpwRmapTCPNode::recvAndParseOnePacket_()
             header.at(6) != 0x00 || header.at(7) != 0x00 ||
             header.at(8) != 0x00 || header.at(9) != 0x00 ||
             header.at(10) != 0x00 || header.at(11) != 0x02) {
+          std::cerr << "Received invalid Timecode packet\n";
           return std::unexpected{std::make_error_code(std::errc::bad_message)};
         }
         std::array<uint8_t, 2> tc{};
@@ -127,6 +133,7 @@ auto SpwRmapTCPNode::recvAndParseOnePacket_()
           return std::unexpected(res.error());
         }
         if (tc.at(1) != 0x00) {
+          std::cerr << "Received invalid Timecode packet\n";
           return std::unexpected{std::make_error_code(std::errc::bad_message)};
         }
       } break;
