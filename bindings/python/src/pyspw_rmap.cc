@@ -116,7 +116,7 @@ class PySpwRmapTCPNode {
   }
 
  private:
-  spw_rmap::SpwRmapTCPNode node_;
+  spw_rmap::SpwRmapTCPClient node_;
   std::thread thread_;
   bool running_ = false;
 };

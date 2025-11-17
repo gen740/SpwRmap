@@ -1,5 +1,5 @@
 #include <random>
-#include <spw_rmap/spw_rmap_tcp_node_server.hh>
+#include <spw_rmap/spw_rmap_tcp_node.hh>
 
 using namespace std::chrono_literals;
 
@@ -10,7 +10,7 @@ auto main() -> int {
   auto config =
       spw_rmap::SpwRmapTCPNodeConfig{.ip_address = "0.0.0.0", .port = "10030"};
 
-  spw_rmap::SpwRmapTCPNodeServer server(config);
+  spw_rmap::SpwRmapTCPServer server(config);
   server.registerOnRead(
       [&gen](spw_rmap::Packet packet) noexcept -> std::vector<uint8_t> {
         std::vector<uint8_t> data(packet.dataLength);

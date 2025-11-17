@@ -5,7 +5,7 @@
 #include "spw_rmap/target_node.hh"
 
 auto main() -> int {
-  auto spw = spw_rmap::SpwRmapTCPNode(
+  auto spw = spw_rmap::SpwRmapTCPClient(
       {.ip_address = "192.168.1.100", .port = "10030"});
   spw.setInitiatorLogicalAddress(0xFE);
   auto res_con = spw.connect(std::chrono::microseconds(1000000));

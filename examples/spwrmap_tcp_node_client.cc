@@ -10,7 +10,7 @@ auto main() -> int {
   auto config = spw_rmap::SpwRmapTCPNodeConfig{.ip_address = "localhost",
                                                .port = "10032"};
 
-  spw_rmap::SpwRmapTCPNode client(config);
+  spw_rmap::SpwRmapTCPClient client(config);
   std::ignore = client.connect(200ms);
 
   auto t = std::thread([&client] -> void {
