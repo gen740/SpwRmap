@@ -1,4 +1,3 @@
-#include <chrono>
 #include <print>
 #include <spw_rmap/internal/tcp_server.hh>
 #include <vector>
@@ -8,7 +7,7 @@ using namespace std::chrono_literals;
 auto main() -> int {
   auto server = spw_rmap::internal::TCPServer("0.0.0.0", "10032");
   {
-    auto res = server.accept_once(0ms, 0ms);
+    auto res = server.accept_once();
     if (!res.has_value()) {
       std::println("Failed to accept a connection. Error: {}",
                    res.error().message());

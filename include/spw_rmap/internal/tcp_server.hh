@@ -5,24 +5,28 @@
 #include <chrono>
 #include <cstdint>
 #include <expected>
-#include <mutex>
 #include <span>
+#include <utility>
 
 namespace spw_rmap::internal {
 
 using namespace std::chrono_literals;
 
+/**
+ * @class TCPServer
+ * @brief A class for managing a TCP server.
+ *
+ * This TCPServer is supposed to be used for RMAP communication over TCP.
+ * This server accepts a single connection at a time.
+ */
 class TCPServer {
  private:
   int listen_fd_ = -1;  // listening socket
   int client_fd_ = -1;  // accepted client socket
 
   static auto close_retry_(int fd) noexcept -> void;
-  std::string_view bind_address_;
-  std::string_view port_;
-
-  std::mutex send_mtx_;
-  std::mutex recv_mtx_;
+  std::string bind_address_;
+  std::string port_;
 
  public:
   TCPServer() = delete;
@@ -31,30 +35,31 @@ class TCPServer {
   TCPServer(TCPServer&&) = delete;
   auto operator=(TCPServer&&) -> TCPServer& = delete;
 
-  TCPServer(std::string_view bind_address, std::string_view port) noexcept
-      : bind_address_(bind_address), port_(port) {};
+  TCPServer(std::string bind_address, std::string port) noexcept
+      : bind_address_(std::move(bind_address)), port_(std::move(port)) {};
 
   ~TCPServer() noexcept;
 
-  auto accept_once(std::chrono::microseconds send_timeout = 200ms,
-                   std::chrono::microseconds recv_timeout = 200ms) noexcept
+  [[nodiscard]] auto accept_once() noexcept
       -> std::expected<std::monostate, std::error_code>;
 
-  auto setRecvTimeout(std::chrono::microseconds timeout) noexcept
+  [[nodiscard]] auto setRecvTimeout(std::chrono::microseconds timeout) noexcept
       -> std::expected<std::monostate, std::error_code>;
 
-  auto setSendTimeout(std::chrono::microseconds timeout) noexcept
+  [[nodiscard]] auto setSendTimeout(std::chrono::microseconds timeout) noexcept
       -> std::expected<std::monostate, std::error_code>;
 
-  auto sendAll(std::span<const uint8_t> data) noexcept
+  [[nodiscard]] auto sendAll(std::span<const uint8_t> data) noexcept
       -> std::expected<std::monostate, std::error_code>;
 
-  auto recvSome(std::span<uint8_t> buf) noexcept
+  [[nodiscard]] auto recvSome(std::span<uint8_t> buf) noexcept
       -> std::expected<size_t, std::error_code>;
 
-  auto shutdown() noexcept -> std::expected<std::monostate, std::error_code>;
+  [[nodiscard]] auto shutdown() noexcept
+      -> std::expected<std::monostate, std::error_code>;
 
-  auto closeClient() noexcept -> std::expected<std::monostate, std::error_code>;
+  [[nodiscard]] auto closeClient() noexcept
+      -> std::expected<std::monostate, std::error_code>;
 };
 
 }  // namespace spw_rmap::internal

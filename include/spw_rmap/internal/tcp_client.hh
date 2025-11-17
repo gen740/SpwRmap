@@ -5,9 +5,9 @@
 #include <chrono>
 #include <cstdint>
 #include <expected>
-#include <mutex>
 #include <span>
 #include <system_error>
+#include <utility>
 
 namespace spw_rmap::internal {
 
@@ -23,12 +23,8 @@ class TCPClient {
  private:
   int fd_ = -1;
 
-  static auto close_retry_(int fd) noexcept -> void;
-  std::string_view ip_address_;
-  std::string_view port_;
-
-  std::mutex send_mtx_;
-  std::mutex recv_mtx_;
+  std::string ip_address_;
+  std::string port_;
 
  public:
   TCPClient() = delete;
@@ -37,23 +33,18 @@ class TCPClient {
   TCPClient(TCPClient&&) = delete;
   auto operator=(TCPClient&&) -> TCPClient& = delete;
 
-  TCPClient(std::string_view ip_address, std::string_view port)
-      : ip_address_(ip_address), port_(port) {}
+  TCPClient(std::string ip_address, std::string port)
+      : ip_address_(std::move(ip_address)), port_(std::move(port)) {}
 
   ~TCPClient();
 
-  [[nodiscard]] auto connect(
-      std::chrono::microseconds recv_timeout = 500ms,
-      std::chrono::microseconds send_timeout = 500ms,
-      std::chrono::microseconds connect_timeout = 500ms) noexcept
+  [[nodiscard]] auto connect(std::chrono::microseconds timeout = 500ms) noexcept
       -> std::expected<std::monostate, std::error_code>;
 
   auto disconnect() noexcept -> void;
 
   [[nodiscard]] auto reconnect(
-      std::chrono::microseconds recv_timeout = 500ms,
-      std::chrono::microseconds send_timeout = 500ms,
-      std::chrono::microseconds connect_timeout = 500ms) noexcept
+      std::chrono::microseconds timeout = 500ms) noexcept
       -> std::expected<std::monostate, std::error_code>;
 
   [[nodiscard]] auto setRecvTimeout(std::chrono::microseconds timeout) noexcept

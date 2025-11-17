@@ -2,6 +2,7 @@
 #include <pybind11/stl.h>
 
 #include <chrono>
+#include <iostream>
 #include <span>
 #include <spw_rmap/spw_rmap_node_base.hh>
 #include <spw_rmap/spw_rmap_tcp_node.hh>
@@ -44,7 +45,7 @@ class PySpwRmapTCPNode {
   }
 
   void start() {
-    auto res = node_.connect(0ms, 0ms, 5000ms);
+    auto res = node_.connect(5000ms);
     running_ = true;
     if (!res) {
       throw std::system_error(res.error());

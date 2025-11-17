@@ -85,8 +85,7 @@ static inline auto gai_category() noexcept -> const std::error_category& {
   return cat;
 }
 
-auto TCPServer::accept_once(std::chrono::microseconds send_timeout,
-                            std::chrono::microseconds recv_timeout) noexcept
+auto TCPServer::accept_once() noexcept
     -> std::expected<std::monostate, std::error_code> {
   addrinfo hints{};
   hints.ai_family = AF_UNSPEC;  // IPv4/IPv6 both
@@ -146,12 +145,6 @@ auto TCPServer::accept_once(std::chrono::microseconds send_timeout,
     }
 
     last = internal::server_set_sockopts(client_fd_)
-               .and_then([this, send_timeout](auto) -> auto {
-                 return setSendTimeout(send_timeout);
-               })
-               .and_then([this, recv_timeout](auto) -> auto {
-                 return setRecvTimeout(recv_timeout);
-               })
                .or_else([this](const auto& ec)
                             -> std::expected<std::monostate, std::error_code> {
                  close_retry_(listen_fd_);
@@ -225,7 +218,6 @@ auto TCPServer::setSendTimeout(std::chrono::microseconds timeout) noexcept
 
 auto TCPServer::sendAll(std::span<const uint8_t> data) noexcept
     -> std::expected<std::monostate, std::error_code> {
-  std::lock_guard<std::mutex> lock(send_mtx_);
   while (!data.empty()) {
 #ifndef __APPLE__
     constexpr int kFlags = MSG_NOSIGNAL;
@@ -254,7 +246,6 @@ auto TCPServer::sendAll(std::span<const uint8_t> data) noexcept
 
 auto TCPServer::recvSome(std::span<uint8_t> buf) noexcept
     -> std::expected<size_t, std::error_code> {
-  std::lock_guard<std::mutex> lock(recv_mtx_);
   if (buf.empty()) {
     return 0U;
   }

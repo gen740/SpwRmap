@@ -8,7 +8,6 @@
 #include <chrono>
 #include <cstdint>
 #include <cstring>
-#include <print>
 #include <random>
 #include <span>
 #include <spw_rmap/internal/tcp_client.hh>
@@ -69,7 +68,7 @@ TEST(TcpClientServer, ServerRecieve) {
     try {
       std::string port_str = std::to_string(port);
       TCPServer server("127.0.0.1", port_str);
-      auto res = server.accept_once(500ms, 500ms);
+      auto res = server.accept_once();
       if (!res.has_value()) {
         FAIL() << "Failed to accept connection: " << res.error().message();
       }
@@ -98,7 +97,7 @@ TEST(TcpClientServer, ServerRecieve) {
 
   std::string port_str = std::to_string(port);
   TCPClient client("localhost", port_str);
-  auto res = client.connect(500ms, 500ms, 500ms);
+  auto res = client.connect(500ms);
   if (!res.has_value()) {
     FAIL() << "Failed to connect to server: " << res.error().message();
   }
@@ -151,7 +150,7 @@ TEST(TcpClientServer, ClientRecieve) {
     try {
       std::string port_str = std::to_string(port);
       TCPServer server("127.0.0.1", port_str);
-      auto res = server.accept_once(500ms, 500ms);
+      auto res = server.accept_once();
       if (!res.has_value()) {
         FAIL() << "Failed to accept connection: " << res.error().message();
       }
@@ -177,7 +176,7 @@ TEST(TcpClientServer, ClientRecieve) {
 
   std::string port_str = std::to_string(port);
   TCPClient client("localhost", port_str);
-  auto res = client.connect(500ms, 500ms, 500ms);
+  auto res = client.connect(500ms);
   if (!res.has_value()) {
     FAIL() << "Failed to connect to server: " << res.error().message();
   }

@@ -33,7 +33,7 @@ auto main() -> int {
   });
 
   for (size_t i = 0; i < 10; ++i) {
-    server.acceptOnce(0ms, 0ms);
+    server.acceptOnce();
     auto res = server.runLoop();
     if (!res.has_value()) {
       std::cerr << "Error in server run loop: " << res.error().message()

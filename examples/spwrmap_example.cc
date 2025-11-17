@@ -8,9 +8,7 @@ auto main() -> int {
   auto spw = spw_rmap::SpwRmapTCPNode(
       {.ip_address = "192.168.1.100", .port = "10030"});
   spw.setInitiatorLogicalAddress(0xFE);
-  auto res_con = spw.connect(std::chrono::microseconds(1000000),
-                             std::chrono::microseconds(1000000),
-                             std::chrono::microseconds(1000000));
+  auto res_con = spw.connect(std::chrono::microseconds(1000000));
 
   if (res_con.has_value()) {
     std::cout << "Connected to SpaceWire RMAP TCP Node." << std::endl;

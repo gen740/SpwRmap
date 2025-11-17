@@ -96,10 +96,9 @@ class SpwRmapTCPNodeServer : public SpwRmapNodeBase {
     initiator_logical_address_ = address;
   }
 
-  auto acceptOnce(std::chrono::microseconds send_timeout,
-                  std::chrono::microseconds recv_timeout) {
+  auto acceptOnce() {
     std::lock_guard<std::mutex> lock(shutdown_mtx_);
-    auto res = tcp_server_->accept_once(send_timeout, recv_timeout);
+    auto res = tcp_server_->accept_once();
     if (!res.has_value()) {
       std::cerr << "Failed to accept TCP connection: " << res.error().message()
                 << "\n";

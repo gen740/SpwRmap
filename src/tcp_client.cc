@@ -20,9 +20,18 @@ namespace spw_rmap::internal {
 
 using namespace std::chrono_literals;
 
-auto connect_with_timeout_(const int fd, const sockaddr* addr,
-                           socklen_t addrlen,
-                           std::chrono::microseconds timeout) noexcept
+static auto close_retry_(int fd) noexcept -> void {
+  if (fd >= 0) {
+    auto r = 0;
+    do {
+      r = ::close(fd);
+    } while (r < 0 && errno == EINTR);
+  }
+}
+
+static auto connect_with_timeout_(const int fd, const sockaddr* addr,
+                                  socklen_t addrlen,
+                                  std::chrono::microseconds timeout) noexcept
     -> std::expected<std::monostate, std::error_code> {
   if (timeout < std::chrono::microseconds::zero()) {
     spw_rmap::debug::debug("Negative timeout value");
@@ -105,7 +114,7 @@ auto connect_with_timeout_(const int fd, const sockaddr* addr,
   return {};
 }
 
-auto set_sockopts(int fd) noexcept
+static auto set_sockopts(int fd) noexcept
     -> std::expected<std::monostate, std::error_code> {
   int yes = 1;
   if (::setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes)) != 0) {
@@ -124,15 +133,6 @@ auto set_sockopts(int fd) noexcept
     return std::unexpected{std::error_code(errno, std::system_category())};
   }
   return {};
-}
-
-auto TCPClient::close_retry_(int fd) noexcept -> void {
-  if (fd >= 0) {
-    auto r = 0;
-    do {
-      r = ::close(fd);
-    } while (r < 0 && errno == EINTR);
-  }
 }
 
 TCPClient::~TCPClient() {
@@ -155,9 +155,7 @@ static inline auto gai_category() noexcept -> const std::error_category& {
 }
 
 [[nodiscard]] auto TCPClient::connect(
-    std::chrono::microseconds recv_timeout,
-    std::chrono::microseconds send_timeout,
-    std::chrono::microseconds connect_timeout) noexcept
+    std::chrono::microseconds timeout) noexcept
     -> std::expected<std::monostate, std::error_code> {
   if (fd_ >= 0) {
     spw_rmap::debug::debug("Already connected");
@@ -192,17 +190,10 @@ static inline auto gai_category() noexcept -> const std::error_category& {
       fd_ = -1;
       continue;
     }
-    last = internal::set_sockopts(fd_)
-               .and_then([this, send_timeout](auto) -> auto {
-                 return setSendTimeout(send_timeout);
-               })
-               .and_then([this, recv_timeout](auto) -> auto {
-                 return setRecvTimeout(recv_timeout);
-               })
-               .and_then([this, connect_timeout, ai](auto) -> auto {
-                 return connect_with_timeout_(fd_, ai->ai_addr, ai->ai_addrlen,
-                                              connect_timeout);
-               });
+    last = internal::set_sockopts(fd_).and_then([this, timeout,
+                                                 ai](auto) -> auto {
+      return connect_with_timeout_(fd_, ai->ai_addr, ai->ai_addrlen, timeout);
+    });
     if (!last.has_value()) {
       close_retry_(fd_);
       fd_ = -1;
@@ -223,13 +214,11 @@ auto TCPClient::disconnect() noexcept -> void {
   fd_ = -1;
 }
 
-auto TCPClient::reconnect(std::chrono::microseconds recv_timeout,
-                          std::chrono::microseconds send_timeout,
-                          std::chrono::microseconds connect_timeout) noexcept
+auto TCPClient::reconnect(std::chrono::microseconds timeout) noexcept
     -> std::expected<std::monostate, std::error_code> {
   disconnect();
   fd_ = -1;
-  return connect(recv_timeout, send_timeout, connect_timeout);
+  return connect(timeout);
 }
 
 auto TCPClient::setRecvTimeout(std::chrono::microseconds timeout) noexcept
@@ -272,7 +261,6 @@ auto TCPClient::setSendTimeout(std::chrono::microseconds timeout) noexcept
 
 auto TCPClient::sendAll(std::span<const uint8_t> data) noexcept
     -> std::expected<std::monostate, std::error_code> {
-  std::lock_guard<std::mutex> lock(send_mtx_);
   if (fd_ < 0) {
     spw_rmap::debug::debug("Not connected");
     return std::unexpected{std::make_error_code(std::errc::not_connected)};
@@ -336,7 +324,6 @@ auto TCPClient::sendAll(std::span<const uint8_t> data) noexcept
 
 auto TCPClient::recvSome(std::span<uint8_t> buf) noexcept
     -> std::expected<size_t, std::error_code> {
-  std::lock_guard<std::mutex> lock(recv_mtx_);
   if (buf.empty()) {
     return 0U;  // Nothing to receive
   }

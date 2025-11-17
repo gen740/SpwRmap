@@ -6,8 +6,8 @@
 #include <cstring>
 #include <functional>
 #include <future>
-#include <iostream>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -46,6 +46,7 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
 
   std::string ip_address_;
   std::string port_;
+
   internal::ThreadPool recv_thread_pool_{4};  // thread-safe
 
   std::vector<uint8_t> recv_buf_ = {};
@@ -91,14 +92,11 @@ class SpwRmapTCPNode : public SpwRmapNodeBase {
   }
 
  public:
-  auto connect(std::chrono::microseconds recv_timeout = 100ms,
-               std::chrono::microseconds send_timeout = 100ms,
-               std::chrono::microseconds connect_timeout = 100ms)
+  auto connect(std::chrono::microseconds connect_timeout = 100ms)
       -> std::expected<std::monostate, std::error_code> {
     std::lock_guard<std::mutex> lock(shutdown_mtx_);
     tcp_client_ = std::make_unique<internal::TCPClient>(ip_address_, port_);
-    auto res =
-        tcp_client_->connect(recv_timeout, send_timeout, connect_timeout);
+    auto res = tcp_client_->connect(connect_timeout);
     shutdowned_ = false;
     if (!res.has_value()) {
       tcp_client_->disconnect();
