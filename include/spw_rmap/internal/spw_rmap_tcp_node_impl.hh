@@ -8,12 +8,10 @@
 #include <memory>
 #include <mutex>
 #include <string>
-#include <thread>
 #include <vector>
 
 #include "spw_rmap/error_code.hh"
 #include "spw_rmap/internal/debug.hh"
-#include "spw_rmap/internal/thread_pool.hh"
 #include "spw_rmap/packet_builder.hh"
 #include "spw_rmap/packet_parser.hh"
 #include "spw_rmap/spw_rmap_node_base.hh"
@@ -43,12 +41,9 @@ template <class Backend>
 class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
  private:
   std::unique_ptr<Backend> tcp_backend_;
-  std::thread worker_thread_;
 
   std::string ip_address_;
   std::string port_;
-
-  internal::ThreadPool recv_thread_pool_{4};  // thread-safe
 
   std::vector<uint8_t> recv_buf_ = {};
 
@@ -144,6 +139,8 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
                             (static_cast<uint64_t>(header[11]) << 0));
     return data_length;
   }
+
+  std::mutex recv_mtx_;
 
   auto recvAndParseOnePacket_() -> std::expected<std::size_t, std::error_code> {
     if (!tcp_backend_) {
@@ -376,13 +373,13 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
                            4 + 12 + 1 + data.size();
     std::lock_guard<std::recursive_mutex> lock(send_buf_mtx_);
     auto send_buffer = std::span(send_buf_);
-    if (expected_length > send_buffer.size()) {
+    if (expected_length + 12 > send_buffer.size()) {
       if (buffer_policy_ == BufferPolicy::Fixed) {
         spw_rmap::debug::debug("Send buffer too small for Write Packet");
         return std::unexpected{
             std::make_error_code(std::errc::no_buffer_space)};
       } else {
-        send_buf_.resize(expected_length);
+        send_buf_.resize(expected_length + 12);
         send_buffer = std::span(send_buf_);
       }
     }
@@ -395,6 +392,7 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
         .transactionID = transaction_id,
         .extendedAddress = 0x00,
         .address = memory_address,
+        .verifyMode = isVerifyMode(),
         .data = data,
     };
 
@@ -468,21 +466,14 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
               packet.transactionID);
           return std::unexpected{std::make_error_code(std::errc::bad_message)};
         }
-        auto res = recv_thread_pool_.post([this, packet]() noexcept -> void {
-          std::lock_guard<std::mutex> lock(
-              *reply_callback_mtx_[packet.transactionID - transaction_id_min_]);
-          if (reply_callback_[packet.transactionID - transaction_id_min_]) {
-            reply_callback_[packet.transactionID - transaction_id_min_](packet);
-            reply_callback_[packet.transactionID - transaction_id_min_] =
-                nullptr;
-          } else {
-            std::cerr << "No callback registered for Transaction ID: "
-                      << packet.transactionID << "\n";
-          }
-        });
-        if (!res.has_value()) {
-          std::cerr << "Failed to post callback to thread pool: "
-                    << res.error().message() << "\n";
+        std::lock_guard<std::mutex> lock(
+            *reply_callback_mtx_[packet.transactionID - transaction_id_min_]);
+        if (reply_callback_[packet.transactionID - transaction_id_min_]) {
+          reply_callback_[packet.transactionID - transaction_id_min_](packet);
+          reply_callback_[packet.transactionID - transaction_id_min_] = nullptr;
+        } else {
+          std::cerr << "No callback registered for Transaction ID: "
+                    << packet.transactionID << "\n";
         }
         break;
       }

@@ -2,6 +2,7 @@
 #include <iostream>
 #include <memory>
 #include <spw_rmap/spw_rmap_tcp_node.hh>
+#include <thread>
 #include <tuple>
 
 using namespace std::chrono_literals;

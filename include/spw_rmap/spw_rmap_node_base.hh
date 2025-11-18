@@ -17,6 +17,13 @@
 namespace spw_rmap {
 
 class SpwRmapNodeBase {
+  bool verify_mode_{true};
+
+ protected:
+  [[nodiscard]] auto isVerifyMode() const noexcept -> bool {
+    return verify_mode_;
+  }
+
  public:
   SpwRmapNodeBase() = default;
   virtual ~SpwRmapNodeBase() = default;
@@ -26,11 +33,6 @@ class SpwRmapNodeBase {
 
   SpwRmapNodeBase(SpwRmapNodeBase&&) = delete;
   auto operator=(SpwRmapNodeBase&&) -> SpwRmapNodeBase& = delete;
-
-  /**
-   * @brief Runs the main loop of the node.
-   *
-   */
 
   virtual auto poll() -> std::expected<bool, std::error_code> = 0;
 
@@ -112,6 +114,10 @@ class SpwRmapNodeBase {
    */
   virtual auto emitTimeCode(uint8_t timecode) noexcept
       -> std::expected<std::monostate, std::error_code> = 0;
+
+  auto setVerifyMode(bool verify_mode) noexcept -> void {
+    verify_mode_ = verify_mode;
+  }
 };
 
 }  // namespace spw_rmap

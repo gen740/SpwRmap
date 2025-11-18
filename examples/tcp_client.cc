@@ -1,4 +1,3 @@
-#include <iostream>
 #include <print>
 #include <spw_rmap/internal/tcp_client.hh>
 #include <thread>
@@ -7,7 +6,6 @@
 using namespace std::chrono_literals;
 
 auto main() -> int {
-  std::cout << "hi";
   auto client = spw_rmap::internal::TCPClient("localhost", "10032");
   auto res = client.connect(500ms);
   if (!res.has_value()) {
@@ -16,13 +14,8 @@ auto main() -> int {
     return 1;
   }
   std::vector<uint8_t> buffer;
-  try {
-    buffer.resize(1024);
-  } catch (const std::bad_alloc& e) {
-    std::println("Failed to allocate memory for the buffer: {}", e.what());
-    return 1;
-  }
-  buffer[0] = 0x01;  // Example data to send
+  buffer.resize(1024);
+  buffer[0] = 0x01;
   buffer[1] = 0x02;
   buffer[2] = 0x03;
   buffer[3] = 0x04;
