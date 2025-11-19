@@ -647,23 +647,32 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
       transaction_id = transaction_id_res.value();
     }
 
+    const auto tx_index = transaction_id - transaction_id_min_;
+    {
+      std::lock_guard<std::mutex> lock(*reply_callback_mtx_[tx_index]);
+      reply_callback_[tx_index] = [this,
+                                   on_complete = std::move(on_complete),
+                                   promise,
+                                   transaction_id](const Packet& packet) mutable
+          noexcept -> void {
+        on_complete(packet);
+        promise->set_value({});
+        releaseTransactionID_(transaction_id);
+      };
+    }
+
     auto res =
         sendWritePacket_(target_node, transaction_id, memory_address, data);
     if (!res.has_value()) {
+      {
+        std::lock_guard<std::mutex> lock(*reply_callback_mtx_[tx_index]);
+        reply_callback_[tx_index] = nullptr;
+      }
       promise->set_value(std::unexpected{res.error()});
       releaseTransactionID_(transaction_id);
       return future;
     }
 
-    std::lock_guard<std::mutex> lock(
-        *(reply_callback_mtx_[transaction_id - transaction_id_min_]));
-    reply_callback_[transaction_id - transaction_id_min_] =
-        [this, on_complete = std::move(on_complete), promise,
-         transaction_id](const Packet& packet) mutable noexcept -> void {
-      on_complete(packet);
-      promise->set_value({});
-      releaseTransactionID_(transaction_id);
-    };
     return future;
   }
 
@@ -696,23 +705,32 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
       transaction_id = transaction_id_res.value();
     }
 
+    const auto tx_index = transaction_id - transaction_id_min_;
+    {
+      std::lock_guard<std::mutex> lock(*reply_callback_mtx_[tx_index]);
+      reply_callback_[tx_index] = [this,
+                                   on_complete = std::move(on_complete),
+                                   promise,
+                                   transaction_id](const Packet& packet) mutable
+          noexcept -> void {
+        on_complete(packet);
+        promise->set_value({});
+        releaseTransactionID_(transaction_id);
+      };
+    }
+
     auto res = sendReadPacket_(target_node, transaction_id, memory_address,
                                data_length);
     if (!res.has_value()) {
+      {
+        std::lock_guard<std::mutex> lock(*reply_callback_mtx_[tx_index]);
+        reply_callback_[tx_index] = nullptr;
+      }
       promise->set_value(std::unexpected{res.error()});
       releaseTransactionID_(transaction_id);
       return future;
     }
 
-    std::lock_guard<std::mutex> lock(
-        *(reply_callback_mtx_[transaction_id - transaction_id_min_]));
-    reply_callback_[transaction_id - transaction_id_min_] =
-        [this, on_complete = std::move(on_complete), promise,
-         transaction_id](const Packet& packet) mutable noexcept -> void {
-      on_complete(packet);
-      promise->set_value({});
-      releaseTransactionID_(transaction_id);
-    };
     return future;
   }
 
