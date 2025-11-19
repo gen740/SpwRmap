@@ -8,6 +8,7 @@
 #include <future>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -52,8 +53,11 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
   std::vector<uint8_t> send_buf_ = {};
 
   std::vector<std::function<void(Packet)>> reply_callback_ = {};
+  std::vector<std::function<void(std::error_code)>> reply_error_callback_ = {};
   std::vector<std::unique_ptr<std::mutex>> reply_callback_mtx_;
   std::vector<bool> available_transaction_ids_ = {};
+  std::vector<std::chrono::steady_clock::time_point> transaction_last_used_ =
+      {};
   std::mutex transaction_ids_mtx_;
 
   PacketParser packet_parser_ = {};
@@ -63,6 +67,8 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
   uint16_t transaction_id_min_;
   uint16_t transaction_id_max_;
   BufferPolicy buffer_policy_ = BufferPolicy::AutoResize;
+
+  std::chrono::milliseconds transaction_timeout_{std::chrono::seconds(1)};
 
   std::atomic<bool> running_{false};
 
@@ -81,7 +87,10 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
     for (uint32_t i = 0; i < transaction_id_max_ - transaction_id_min_; ++i) {
       available_transaction_ids_.emplace_back(true);
       reply_callback_.emplace_back(nullptr);
+      reply_error_callback_.emplace_back(nullptr);
       reply_callback_mtx_.emplace_back(std::make_unique<std::mutex>());
+      transaction_last_used_.emplace_back(
+          std::chrono::steady_clock::time_point::min());
     }
   }
 
@@ -408,15 +417,32 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
 
   auto getAvailableTransactionID_() noexcept
       -> std::expected<uint32_t, std::error_code> {
-    std::lock_guard<std::mutex> lock(transaction_ids_mtx_);
-    for (uint32_t i = 0; i < transaction_id_max_ - transaction_id_min_; ++i) {
-      if (available_transaction_ids_[i]) {
-        available_transaction_ids_[i] = false;
-        return transaction_id_min_ + i;
+    const auto total_ids = transaction_id_max_ - transaction_id_min_;
+    while (true) {
+      std::optional<std::size_t> expired_index{};
+      {
+        std::lock_guard<std::mutex> lock(transaction_ids_mtx_);
+        const auto now = std::chrono::steady_clock::now();
+        for (std::size_t i = 0; i < total_ids; ++i) {
+          if (available_transaction_ids_[i]) {
+            available_transaction_ids_[i] = false;
+            transaction_last_used_[i] = now;
+            return transaction_id_min_ + static_cast<uint32_t>(i);
+          }
+          if (!expired_index.has_value() && !available_transaction_ids_[i]) {
+            const auto elapsed = now - transaction_last_used_[i];
+            if (elapsed > transaction_timeout_) {
+              expired_index = i;
+            }
+          }
+        }
+        if (!expired_index.has_value()) {
+          return std::unexpected{std::make_error_code(
+              std::errc::resource_unavailable_try_again)};
+        }
       }
+      forceReleaseTransaction_(*expired_index);
     }
-    return std::unexpected{
-        std::make_error_code(std::errc::resource_unavailable_try_again)};
   }
 
   auto releaseTransactionID_(uint16_t transaction_id) noexcept -> void {
@@ -426,7 +452,28 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
       return;
     }
     std::lock_guard<std::mutex> lock(transaction_ids_mtx_);
-    available_transaction_ids_[transaction_id - transaction_id_min_] = true;
+    const auto index = transaction_id - transaction_id_min_;
+    available_transaction_ids_[index] = true;
+    transaction_last_used_[index] =
+        std::chrono::steady_clock::time_point::min();
+  }
+
+  auto forceReleaseTransaction_(std::size_t index) noexcept -> void {
+    std::function<void(std::error_code)> error_handler = nullptr;
+    {
+      std::lock_guard<std::mutex> lock(*reply_callback_mtx_[index]);
+      if (reply_error_callback_[index]) {
+        error_handler = std::move(reply_error_callback_[index]);
+      }
+      reply_callback_[index] = nullptr;
+      reply_error_callback_[index] = nullptr;
+    }
+    if (error_handler) {
+      error_handler(std::make_error_code(std::errc::timed_out));
+    } else {
+      releaseTransactionID_(transaction_id_min_ +
+                            static_cast<uint16_t>(index));
+    }
   }
 
  public:
@@ -467,11 +514,13 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
               packet.transactionID);
           return std::unexpected{std::make_error_code(std::errc::bad_message)};
         }
-        std::lock_guard<std::mutex> lock(
-            *reply_callback_mtx_[packet.transactionID - transaction_id_min_]);
-        if (reply_callback_[packet.transactionID - transaction_id_min_]) {
-          reply_callback_[packet.transactionID - transaction_id_min_](packet);
-          reply_callback_[packet.transactionID - transaction_id_min_] = nullptr;
+        const auto idx = packet.transactionID - transaction_id_min_;
+        std::lock_guard<std::mutex> lock(*reply_callback_mtx_[idx]);
+        if (reply_callback_[idx]) {
+          auto callback = std::move(reply_callback_[idx]);
+          reply_callback_[idx] = nullptr;
+          reply_error_callback_[idx] = nullptr;
+          callback(packet);
         } else {
           std::cerr << "No callback registered for Transaction ID: "
                     << packet.transactionID << "\n";
@@ -619,10 +668,15 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
     on_read_callback_ = std::move(onRead);
   }
 
+  auto setTimeout(std::chrono::milliseconds timeout) noexcept -> void {
+    transaction_timeout_ = timeout;
+  }
+
   auto write(std::shared_ptr<TargetNodeBase> target_node,
              uint32_t memory_address, const std::span<const uint8_t> data,
-             std::chrono::milliseconds timeout,
-             std::size_t retry_count) noexcept
+             std::chrono::milliseconds timeout =
+                 std::chrono::milliseconds{100},
+             std::size_t retry_count = 3) noexcept
       -> std::expected<std::monostate, std::error_code> override {
     retry_count = retry_count == 0 ? 1 : retry_count;
     std::error_code last_error = std::make_error_code(std::errc::timed_out);
@@ -665,14 +719,23 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
     const auto tx_index = transaction_id - transaction_id_min_;
     {
       std::lock_guard<std::mutex> lock(*reply_callback_mtx_[tx_index]);
+      reply_error_callback_[tx_index] =
+          [this, promise, transaction_id, tx_index](
+              std::error_code ec) mutable noexcept -> void {
+        promise->set_value(std::unexpected{ec});
+        releaseTransactionID_(transaction_id);
+        reply_error_callback_[tx_index] = nullptr;
+      };
       reply_callback_[tx_index] = [this,
                                    on_complete = std::move(on_complete),
                                    promise,
-                                   transaction_id](const Packet& packet) mutable
+                                   transaction_id,
+                                   tx_index](const Packet& packet) mutable
           noexcept -> void {
         on_complete(packet);
         promise->set_value({});
         releaseTransactionID_(transaction_id);
+        reply_error_callback_[tx_index] = nullptr;
       };
     }
 
@@ -682,6 +745,7 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
       {
         std::lock_guard<std::mutex> lock(*reply_callback_mtx_[tx_index]);
         reply_callback_[tx_index] = nullptr;
+        reply_error_callback_[tx_index] = nullptr;
       }
       promise->set_value(std::unexpected{res.error()});
       releaseTransactionID_(transaction_id);
@@ -693,8 +757,9 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
 
   auto read(std::shared_ptr<TargetNodeBase> target_node,
             uint32_t memory_address, const std::span<uint8_t> data,
-            std::chrono::milliseconds timeout,
-            std::size_t retry_count) noexcept
+            std::chrono::milliseconds timeout =
+                std::chrono::milliseconds{100},
+            std::size_t retry_count = 3) noexcept
       -> std::expected<std::monostate, std::error_code> override {
     retry_count = retry_count == 0 ? 1 : retry_count;
     std::error_code last_error = std::make_error_code(std::errc::timed_out);
@@ -737,14 +802,23 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
     const auto tx_index = transaction_id - transaction_id_min_;
     {
       std::lock_guard<std::mutex> lock(*reply_callback_mtx_[tx_index]);
+      reply_error_callback_[tx_index] =
+          [this, promise, transaction_id, tx_index](
+              std::error_code ec) mutable noexcept -> void {
+        promise->set_value(std::unexpected{ec});
+        releaseTransactionID_(transaction_id);
+        reply_error_callback_[tx_index] = nullptr;
+      };
       reply_callback_[tx_index] = [this,
                                    on_complete = std::move(on_complete),
                                    promise,
-                                   transaction_id](const Packet& packet) mutable
+                                   transaction_id,
+                                   tx_index](const Packet& packet) mutable
           noexcept -> void {
         on_complete(packet);
         promise->set_value({});
         releaseTransactionID_(transaction_id);
+        reply_error_callback_[tx_index] = nullptr;
       };
     }
 
@@ -754,6 +828,7 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
       {
         std::lock_guard<std::mutex> lock(*reply_callback_mtx_[tx_index]);
         reply_callback_[tx_index] = nullptr;
+        reply_error_callback_[tx_index] = nullptr;
       }
       promise->set_value(std::unexpected{res.error()});
       releaseTransactionID_(transaction_id);
