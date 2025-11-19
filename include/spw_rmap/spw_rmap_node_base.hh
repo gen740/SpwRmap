@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE file for details.
 #pragma once
 
+#include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <expected>
 #include <functional>
@@ -56,7 +58,10 @@ class SpwRmapNodeBase {
    */
   virtual auto write(std::shared_ptr<TargetNodeBase> target_node,
                      uint32_t memory_address,
-                     const std::span<const uint8_t> data) noexcept
+                     const std::span<const uint8_t> data,
+                     std::chrono::milliseconds timeout =
+                         std::chrono::milliseconds{100},
+                     std::size_t retry_count = 3) noexcept
       -> std::expected<std::monostate, std::error_code> = 0;
 
   /**
@@ -70,8 +75,10 @@ class SpwRmapNodeBase {
    * @param data Reference to a span where the read data will be stored.
    */
   virtual auto read(std::shared_ptr<TargetNodeBase> target_node,
-                    uint32_t memory_address,
-                    const std::span<uint8_t> data) noexcept
+                    uint32_t memory_address, const std::span<uint8_t> data,
+                    std::chrono::milliseconds timeout =
+                        std::chrono::milliseconds{100},
+                    std::size_t retry_count = 3) noexcept
       -> std::expected<std::monostate, std::error_code> = 0;
 
   /**

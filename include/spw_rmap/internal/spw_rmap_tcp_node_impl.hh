@@ -1,6 +1,7 @@
 // Copyright (c) 2025 Gen
 // Licensed under the MIT License. See LICENSE file for details.
 #pragma once
+#include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <functional>
@@ -619,12 +620,26 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
   }
 
   auto write(std::shared_ptr<TargetNodeBase> target_node,
-             uint32_t memory_address,
-             const std::span<const uint8_t> data) noexcept
+             uint32_t memory_address, const std::span<const uint8_t> data,
+             std::chrono::milliseconds timeout,
+             std::size_t retry_count) noexcept
       -> std::expected<std::monostate, std::error_code> override {
-    return writeAsync(target_node, memory_address, data,
-                      [](const Packet&) noexcept -> void {})
-        .get();
+    retry_count = retry_count == 0 ? 1 : retry_count;
+    std::error_code last_error = std::make_error_code(std::errc::timed_out);
+    for (std::size_t attempt = 0; attempt < retry_count; ++attempt) {
+      auto future =
+          writeAsync(target_node, memory_address, data,
+                     [](const Packet&) noexcept -> void {});
+      if (future.wait_for(timeout) == std::future_status::ready) {
+        auto res = future.get();
+        if (!res.has_value()) {
+          return std::unexpected{res.error()};
+        }
+        return {};
+      }
+      last_error = std::make_error_code(std::errc::timed_out);
+    }
+    return std::unexpected{last_error};
   }
 
   auto writeAsync(std::shared_ptr<TargetNodeBase> target_node,
@@ -677,14 +692,28 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
   }
 
   auto read(std::shared_ptr<TargetNodeBase> target_node,
-            uint32_t memory_address, const std::span<uint8_t> data) noexcept
+            uint32_t memory_address, const std::span<uint8_t> data,
+            std::chrono::milliseconds timeout,
+            std::size_t retry_count) noexcept
       -> std::expected<std::monostate, std::error_code> override {
-    return readAsync(target_node, memory_address, data.size(),
-                     [data](const Packet& packet) noexcept -> void {
-                       std::copy_n(packet.data.data(), data.size(),
-                                   data.data());
-                     })
-        .get();
+    retry_count = retry_count == 0 ? 1 : retry_count;
+    std::error_code last_error = std::make_error_code(std::errc::timed_out);
+    for (std::size_t attempt = 0; attempt < retry_count; ++attempt) {
+      auto future = readAsync(
+          target_node, memory_address, data.size(),
+          [data](const Packet& packet) noexcept -> void {
+            std::copy_n(packet.data.data(), data.size(), data.data());
+          });
+      if (future.wait_for(timeout) == std::future_status::ready) {
+        auto res = future.get();
+        if (!res.has_value()) {
+          return std::unexpected{res.error()};
+        }
+        return {};
+      }
+      last_error = std::make_error_code(std::errc::timed_out);
+    }
+    return std::unexpected{last_error};
   }
 
   auto readAsync(std::shared_ptr<TargetNodeBase> target_node,
