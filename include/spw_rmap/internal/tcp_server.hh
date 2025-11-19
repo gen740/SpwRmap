@@ -3,14 +3,16 @@
 #pragma once
 
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <expected>
 #include <span>
+#include <string>
+#include <system_error>
 #include <utility>
+#include <variant>
 
 namespace spw_rmap::internal {
-
-using namespace std::chrono_literals;
 
 /**
  * @class TCPServer
@@ -43,9 +45,6 @@ class TCPServer {
   [[nodiscard]] auto accept_once() noexcept
       -> std::expected<std::monostate, std::error_code>;
 
-  [[nodiscard]] auto setRecvTimeout(std::chrono::microseconds timeout) noexcept
-      -> std::expected<std::monostate, std::error_code>;
-
   [[nodiscard]] auto setSendTimeout(std::chrono::microseconds timeout) noexcept
       -> std::expected<std::monostate, std::error_code>;
 
@@ -56,9 +55,6 @@ class TCPServer {
       -> std::expected<size_t, std::error_code>;
 
   [[nodiscard]] auto shutdown() noexcept
-      -> std::expected<std::monostate, std::error_code>;
-
-  [[nodiscard]] auto closeClient() noexcept
       -> std::expected<std::monostate, std::error_code>;
 };
 

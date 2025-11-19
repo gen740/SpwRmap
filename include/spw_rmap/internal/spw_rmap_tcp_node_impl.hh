@@ -35,6 +35,7 @@ struct SpwRmapTCPNodeConfig {
   uint16_t transaction_id_min = 0x0020;
   uint16_t transaction_id_max = 0x0040;
   BufferPolicy buffer_policy = BufferPolicy::AutoResize;
+  std::chrono::microseconds send_timeout = std::chrono::milliseconds{500};
 };
 
 namespace internal {
@@ -67,6 +68,7 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
   uint16_t transaction_id_min_;
   uint16_t transaction_id_max_;
   BufferPolicy buffer_policy_ = BufferPolicy::AutoResize;
+  std::chrono::microseconds send_timeout_{std::chrono::milliseconds{500}};
 
   std::chrono::milliseconds transaction_timeout_{std::chrono::seconds(1)};
 
@@ -83,7 +85,8 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
         send_buf_(config.send_buffer_size),
         transaction_id_min_(config.transaction_id_min),
         transaction_id_max_(config.transaction_id_max),
-        buffer_policy_(config.buffer_policy) {
+        buffer_policy_(config.buffer_policy),
+        send_timeout_(config.send_timeout) {
     for (uint32_t i = 0; i < transaction_id_max_ - transaction_id_min_; ++i) {
       available_transaction_ids_.emplace_back(true);
       reply_callback_.emplace_back(nullptr);
@@ -107,7 +110,27 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
   auto getIpAddress_() const noexcept -> const std::string& {
     return ip_address_;
   }
+
   auto getPort_() const noexcept -> const std::string& { return port_; }
+
+  auto getSendTimeout_() const noexcept -> std::chrono::microseconds {
+    return send_timeout_;
+  }
+
+  auto setSendTimeoutInternal_(std::chrono::microseconds timeout) noexcept
+      -> std::expected<std::monostate, std::error_code> {
+    if (timeout < std::chrono::microseconds::zero()) {
+      return std::unexpected{std::make_error_code(std::errc::invalid_argument)};
+    }
+    send_timeout_ = timeout;
+    if (tcp_backend_) {
+      auto res = tcp_backend_->setSendTimeout(timeout);
+      if (!res.has_value()) {
+        return std::unexpected{res.error()};
+      }
+    }
+    return {};
+  }
 
  private:
   auto recvExact_(std::span<uint8_t> buffer)
@@ -437,8 +460,8 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
           }
         }
         if (!expired_index.has_value()) {
-          return std::unexpected{std::make_error_code(
-              std::errc::resource_unavailable_try_again)};
+          return std::unexpected{
+              std::make_error_code(std::errc::resource_unavailable_try_again)};
         }
       }
       forceReleaseTransaction_(*expired_index);
@@ -471,8 +494,7 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
     if (error_handler) {
       error_handler(std::make_error_code(std::errc::timed_out));
     } else {
-      releaseTransactionID_(transaction_id_min_ +
-                            static_cast<uint16_t>(index));
+      releaseTransactionID_(transaction_id_min_ + static_cast<uint16_t>(index));
     }
   }
 
@@ -674,16 +696,14 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
 
   auto write(std::shared_ptr<TargetNodeBase> target_node,
              uint32_t memory_address, const std::span<const uint8_t> data,
-             std::chrono::milliseconds timeout =
-                 std::chrono::milliseconds{100},
+             std::chrono::milliseconds timeout = std::chrono::milliseconds{100},
              std::size_t retry_count = 3) noexcept
       -> std::expected<std::monostate, std::error_code> override {
     retry_count = retry_count == 0 ? 1 : retry_count;
     std::error_code last_error = std::make_error_code(std::errc::timed_out);
     for (std::size_t attempt = 0; attempt < retry_count; ++attempt) {
-      auto future =
-          writeAsync(target_node, memory_address, data,
-                     [](const Packet&) noexcept -> void {});
+      auto future = writeAsync(target_node, memory_address, data,
+                               [](const Packet&) noexcept -> void {});
       if (future.wait_for(timeout) == std::future_status::ready) {
         auto res = future.get();
         if (!res.has_value()) {
@@ -720,18 +740,15 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
     {
       std::lock_guard<std::mutex> lock(*reply_callback_mtx_[tx_index]);
       reply_error_callback_[tx_index] =
-          [this, promise, transaction_id, tx_index](
-              std::error_code ec) mutable noexcept -> void {
+          [this, promise, transaction_id,
+           tx_index](std::error_code ec) mutable noexcept -> void {
         promise->set_value(std::unexpected{ec});
         releaseTransactionID_(transaction_id);
         reply_error_callback_[tx_index] = nullptr;
       };
-      reply_callback_[tx_index] = [this,
-                                   on_complete = std::move(on_complete),
-                                   promise,
-                                   transaction_id,
-                                   tx_index](const Packet& packet) mutable
-          noexcept -> void {
+      reply_callback_[tx_index] =
+          [this, on_complete = std::move(on_complete), promise, transaction_id,
+           tx_index](const Packet& packet) mutable noexcept -> void {
         on_complete(packet);
         promise->set_value({});
         releaseTransactionID_(transaction_id);
@@ -757,18 +774,17 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
 
   auto read(std::shared_ptr<TargetNodeBase> target_node,
             uint32_t memory_address, const std::span<uint8_t> data,
-            std::chrono::milliseconds timeout =
-                std::chrono::milliseconds{100},
+            std::chrono::milliseconds timeout = std::chrono::milliseconds{100},
             std::size_t retry_count = 3) noexcept
       -> std::expected<std::monostate, std::error_code> override {
     retry_count = retry_count == 0 ? 1 : retry_count;
     std::error_code last_error = std::make_error_code(std::errc::timed_out);
     for (std::size_t attempt = 0; attempt < retry_count; ++attempt) {
-      auto future = readAsync(
-          target_node, memory_address, data.size(),
-          [data](const Packet& packet) noexcept -> void {
-            std::copy_n(packet.data.data(), data.size(), data.data());
-          });
+      auto future =
+          readAsync(target_node, memory_address, data.size(),
+                    [data](const Packet& packet) noexcept -> void {
+                      std::copy_n(packet.data.data(), data.size(), data.data());
+                    });
       if (future.wait_for(timeout) == std::future_status::ready) {
         auto res = future.get();
         if (!res.has_value()) {
@@ -803,18 +819,15 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
     {
       std::lock_guard<std::mutex> lock(*reply_callback_mtx_[tx_index]);
       reply_error_callback_[tx_index] =
-          [this, promise, transaction_id, tx_index](
-              std::error_code ec) mutable noexcept -> void {
+          [this, promise, transaction_id,
+           tx_index](std::error_code ec) mutable noexcept -> void {
         promise->set_value(std::unexpected{ec});
         releaseTransactionID_(transaction_id);
         reply_error_callback_[tx_index] = nullptr;
       };
-      reply_callback_[tx_index] = [this,
-                                   on_complete = std::move(on_complete),
-                                   promise,
-                                   transaction_id,
-                                   tx_index](const Packet& packet) mutable
-          noexcept -> void {
+      reply_callback_[tx_index] =
+          [this, on_complete = std::move(on_complete), promise, transaction_id,
+           tx_index](const Packet& packet) mutable noexcept -> void {
         on_complete(packet);
         promise->set_value({});
         releaseTransactionID_(transaction_id);

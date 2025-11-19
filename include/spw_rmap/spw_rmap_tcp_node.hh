@@ -2,7 +2,9 @@
 // Licensed under the MIT License. See LICENSE file for details.
 #pragma once
 
+#include <chrono>
 #include <cstring>
+#include <expected>
 #include <memory>
 #include <mutex>
 
@@ -33,7 +35,18 @@ class SpwRmapTCPClient
       getBackend_()->disconnect();
       return std::unexpected{res.error()};
     }
+    auto timeout_res = getBackend_()->setSendTimeout(getSendTimeout_());
+    if (!timeout_res.has_value()) {
+      getBackend_()->disconnect();
+      return std::unexpected{timeout_res.error()};
+    }
     return {};
+  }
+
+  auto setSendTimeout(std::chrono::microseconds timeout) noexcept
+      -> std::expected<std::monostate, std::error_code> {
+    std::lock_guard<std::mutex> lock(shutdown_mtx_);
+    return setSendTimeoutInternal_(timeout);
   }
 
   auto shutdown() noexcept
@@ -68,14 +81,29 @@ class SpwRmapTCPServer
   std::mutex shutdown_mtx_;
   bool shutdowned_ = false;
 
-  auto acceptOnce() {
+  auto acceptOnce() -> std::expected<std::monostate, std::error_code> {
     std::lock_guard<std::mutex> lock(shutdown_mtx_);
     auto res = getBackend_()->accept_once();
     if (!res.has_value()) {
       std::cerr << "Failed to accept TCP connection: " << res.error().message()
                 << "\n";
+      return std::unexpected{res.error()};
+    }
+    auto timeout_res = getBackend_()->setSendTimeout(getSendTimeout_());
+    if (!timeout_res.has_value()) {
+      std::cerr << "Failed to set send timeout: "
+                << timeout_res.error().message() << "\n";
+      (void)getBackend_()->shutdown();
+      return std::unexpected{timeout_res.error()};
     }
     shutdowned_ = false;
+    return {};
+  }
+
+  auto setSendTimeout(std::chrono::microseconds timeout) noexcept
+      -> std::expected<std::monostate, std::error_code> {
+    std::lock_guard<std::mutex> lock(shutdown_mtx_);
+    return setSendTimeoutInternal_(timeout);
   }
 
   auto shutdown() noexcept

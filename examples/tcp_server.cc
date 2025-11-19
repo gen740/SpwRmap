@@ -2,8 +2,6 @@
 #include <spw_rmap/internal/tcp_server.hh>
 #include <vector>
 
-using namespace std::chrono_literals;
-
 auto main() -> int {
   auto server = spw_rmap::internal::TCPServer("0.0.0.0", "10032");
   {

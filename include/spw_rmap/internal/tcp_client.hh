@@ -43,13 +43,6 @@ class TCPClient {
 
   auto disconnect() noexcept -> void;
 
-  [[nodiscard]] auto reconnect(
-      std::chrono::microseconds timeout = 500ms) noexcept
-      -> std::expected<std::monostate, std::error_code>;
-
-  [[nodiscard]] auto setRecvTimeout(std::chrono::microseconds timeout) noexcept
-      -> std::expected<std::monostate, std::error_code>;
-
   [[nodiscard]] auto setSendTimeout(std::chrono::microseconds timeout) noexcept
       -> std::expected<std::monostate, std::error_code>;
 

@@ -173,28 +173,6 @@ TCPServer::~TCPServer() noexcept {
   listen_fd_ = -1;
 }
 
-auto TCPServer::setRecvTimeout(std::chrono::microseconds timeout) noexcept
-    -> std::expected<std::monostate, std::error_code> {
-  if (timeout < std::chrono::microseconds::zero()) {
-    spw_rmap::debug::debug("Negative timeout value");
-    return std::unexpected{std::make_error_code(std::errc::invalid_argument)};
-  }
-
-  const auto tv_sec = static_cast<time_t>(
-      std::chrono::duration_cast<std::chrono::seconds>(timeout).count());
-  const auto tv_usec = static_cast<suseconds_t>(timeout.count() % 1000000);
-
-  timeval tv{};
-  tv.tv_sec = tv_sec;
-  tv.tv_usec = tv_usec;
-
-  if (::setsockopt(client_fd_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) != 0) {
-    spw_rmap::debug::debug("Failed to set receive timeout");
-    return std::unexpected{std::error_code(errno, std::system_category())};
-  }
-  return {};
-}
-
 auto TCPServer::setSendTimeout(std::chrono::microseconds timeout) noexcept
     -> std::expected<std::monostate, std::error_code> {
   if (timeout < std::chrono::microseconds::zero()) {
@@ -278,28 +256,6 @@ auto TCPServer::shutdown() noexcept
     return std::unexpected(std::error_code(errno, std::generic_category()));
   }
   return std::monostate{};
-}
-
-auto TCPServer::closeClient() noexcept
-    -> std::expected<std::monostate, std::error_code> {
-  if (client_fd_ < 0) {
-    spw_rmap::debug::debug("Client socket not connected");
-    return std::unexpected(
-        std::make_error_code(std::errc::bad_file_descriptor));
-  }
-
-  int r = 0;
-  do {
-    r = ::close(client_fd_);
-  } while (r < 0 && errno == EINTR);
-
-  if (r < 0) {
-    spw_rmap::debug::debug("Failed to close client socket");
-    return std::unexpected(std::error_code(errno, std::system_category()));
-  }
-
-  client_fd_ = -1;
-  return {};
 }
 
 };  // namespace spw_rmap::internal
