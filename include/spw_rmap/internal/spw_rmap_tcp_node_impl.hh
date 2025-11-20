@@ -43,7 +43,7 @@ namespace internal {
 template <class Backend>
 class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
  private:
-  std::unique_ptr<Backend> tcp_backend_;
+  std::unique_ptr<Backend> tcp_backend_ = nullptr;
 
   std::string ip_address_;
   std::string port_;

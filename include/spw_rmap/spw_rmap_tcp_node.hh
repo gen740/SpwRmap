@@ -75,7 +75,7 @@ class SpwRmapTCPServer
   explicit SpwRmapTCPServer(SpwRmapTCPNodeConfig config) noexcept
       : internal::SpwRmapTCPNodeImpl<internal::TCPServer>(std::move(config)) {
     getBackend_() =
-        std::make_unique<internal::TCPServer>(config.ip_address, config.port);
+        std::make_unique<internal::TCPServer>(getIpAddress_(), getPort_());
   }
 
   std::mutex shutdown_mtx_;
@@ -93,7 +93,10 @@ class SpwRmapTCPServer
     if (!timeout_res.has_value()) {
       std::cerr << "Failed to set send timeout: "
                 << timeout_res.error().message() << "\n";
-      (void)getBackend_()->shutdown();
+      auto res = getBackend_()->shutdown();
+      if (!res.has_value()) {
+        return std::unexpected{res.error()};
+      }
       return std::unexpected{timeout_res.error()};
     }
     shutdowned_ = false;
