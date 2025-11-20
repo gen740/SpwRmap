@@ -27,8 +27,6 @@ class SpwRmapTCPClient
   auto connect(std::chrono::microseconds connect_timeout = 100ms)
       -> std::expected<std::monostate, std::error_code> {
     std::lock_guard<std::mutex> lock(shutdown_mtx_);
-    getBackend_() =
-        std::make_unique<internal::TCPClient>(getIpAddress_(), getPort_());
     auto res = getBackend_()->connect(connect_timeout);
     shutdowned_ = false;
     if (!res.has_value()) {
@@ -73,10 +71,7 @@ class SpwRmapTCPServer
     : public internal::SpwRmapTCPNodeImpl<internal::TCPServer> {
  public:
   explicit SpwRmapTCPServer(SpwRmapTCPNodeConfig config) noexcept
-      : internal::SpwRmapTCPNodeImpl<internal::TCPServer>(std::move(config)) {
-    getBackend_() =
-        std::make_unique<internal::TCPServer>(getIpAddress_(), getPort_());
-  }
+      : internal::SpwRmapTCPNodeImpl<internal::TCPServer>(std::move(config)) {}
 
   std::mutex shutdown_mtx_;
   bool shutdowned_ = false;

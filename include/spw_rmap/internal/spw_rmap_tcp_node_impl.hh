@@ -39,14 +39,28 @@ struct SpwRmapTCPNodeConfig {
 };
 
 namespace internal {
+template <class B>
+concept TcpBackend = requires(
+    B b, std::string ip, std::string port, std::chrono::microseconds us,
+    std::span<uint8_t> inbuf, std::span<const uint8_t> outbuf) {
+  { B(ip, port) };
+  { b.getIpAddress() } -> std::same_as<const std::string&>;
+  { b.setIpAddress(std::move(ip)) } -> std::same_as<void>;
+  { b.getPort() } -> std::same_as<const std::string&>;
+  { b.setPort(std::move(port)) } -> std::same_as<void>;
+  {
+    b.setSendTimeout(us)
+  } -> std::same_as<std::expected<std::monostate, std::error_code>>;
+  { b.recvSome(inbuf) } -> std::same_as<std::expected<size_t, std::error_code>>;
+  {
+    b.sendAll(outbuf)
+  } -> std::same_as<std::expected<std::monostate, std::error_code>>;
+};
 
-template <class Backend>
+template <TcpBackend Backend>
 class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
  private:
   std::unique_ptr<Backend> tcp_backend_ = nullptr;
-
-  std::string ip_address_;
-  std::string port_;
 
   std::vector<uint8_t> recv_buf_ = {};
 
@@ -79,8 +93,8 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
 
  public:
   explicit SpwRmapTCPNodeImpl(SpwRmapTCPNodeConfig config) noexcept
-      : ip_address_(std::move(config.ip_address)),
-        port_(std::move(config.port)),
+      : tcp_backend_(std::make_unique<Backend>(std::move(config.ip_address),
+                                               std::move(config.port))),
         recv_buf_(config.recv_buffer_size),
         send_buf_(config.send_buffer_size),
         transaction_id_min_(config.transaction_id_min),
@@ -108,10 +122,20 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
   }
 
   auto getIpAddress_() const noexcept -> const std::string& {
-    return ip_address_;
+    return tcp_backend_->getIpAddress();
   }
 
-  auto getPort_() const noexcept -> const std::string& { return port_; }
+  auto setIpAddress_(std::string ip_address) noexcept -> void {
+    tcp_backend_.setIpAddress(std::move(ip_address));
+  }
+
+  auto getPort_() const noexcept -> const std::string& {
+    return tcp_backend_->getPort();
+  }
+
+  auto setPort_(std::string port) noexcept -> void {
+    tcp_backend_.setPort(std::move(port));
+  }
 
   auto getSendTimeout_() const noexcept -> std::chrono::microseconds {
     return send_timeout_;

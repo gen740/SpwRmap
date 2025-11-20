@@ -56,6 +56,20 @@ class TCPServer {
 
   [[nodiscard]] auto shutdown() noexcept
       -> std::expected<std::monostate, std::error_code>;
+
+  [[nodiscard]] auto getIpAddress() const noexcept -> const std::string& {
+    return bind_address_;
+  }
+
+  auto setIpAddress(std::string ip_address) noexcept -> void {
+    bind_address_ = std::move(ip_address);
+  }
+
+  [[nodiscard]] auto getPort() const noexcept -> const std::string& {
+    return port_;
+  }
+
+  auto setPort(std::string port) noexcept -> void { port_ = std::move(port); }
 };
 
 }  // namespace spw_rmap::internal
