@@ -251,7 +251,23 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
       reply_callback_[tx_index] =
           [this, on_complete = std::move(on_complete), promise, transaction_id,
            tx_index](const Packet& packet) mutable noexcept -> void {
-        on_complete(packet);
+        try {
+          on_complete(packet);
+        } catch (const std::exception& e) {
+          spw_rmap::debug::debug("Exception in writeAsync callback: ", e.what());
+          promise->set_value(std::unexpected{
+              std::make_error_code(std::errc::operation_canceled)});
+          releaseTransactionID_(transaction_id);
+          reply_error_callback_[tx_index] = nullptr;
+          return;
+        } catch (...) {
+          spw_rmap::debug::debug("Unknown exception in writeAsync callback");
+          promise->set_value(std::unexpected{
+              std::make_error_code(std::errc::operation_canceled)});
+          releaseTransactionID_(transaction_id);
+          reply_error_callback_[tx_index] = nullptr;
+          return;
+        }
         promise->set_value({});
         releaseTransactionID_(transaction_id);
         reply_error_callback_[tx_index] = nullptr;
@@ -301,7 +317,23 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
       reply_callback_[tx_index] =
           [this, on_complete = std::move(on_complete), promise, transaction_id,
            tx_index](const Packet& packet) mutable noexcept -> void {
-        on_complete(packet);
+        try {
+          on_complete(packet);
+        } catch (const std::exception& e) {
+          spw_rmap::debug::debug("Exception in readAsync callback: ", e.what());
+          promise->set_value(std::unexpected{
+              std::make_error_code(std::errc::operation_canceled)});
+          releaseTransactionID_(transaction_id);
+          reply_error_callback_[tx_index] = nullptr;
+          return;
+        } catch (...) {
+          spw_rmap::debug::debug("Unknown exception in readAsync callback");
+          promise->set_value(std::unexpected{
+              std::make_error_code(std::errc::operation_canceled)});
+          releaseTransactionID_(transaction_id);
+          reply_error_callback_[tx_index] = nullptr;
+          return;
+        }
         promise->set_value({});
         releaseTransactionID_(transaction_id);
         reply_error_callback_[tx_index] = nullptr;
