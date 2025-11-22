@@ -50,13 +50,13 @@
       perSystem =
         { pkgs, ... }:
         {
-          devShells.default = pkgs.mkShellNoCC {
+          devShells.default = pkgs.mkShell {
             packages = [
               pkgs.cmake
               pkgs.cmake-format
               pkgs.cmake-language-server
               pkgs.ninja
-              pkgs.gtest
+              pkgs.gtest.dev
               (pkgs.python313.withPackages (
                 ps: with ps; [
                   pybind11

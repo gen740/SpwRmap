@@ -1,6 +1,5 @@
 #include "spw_rmap/packet_builder.hh"
 
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 auto main() -> int {

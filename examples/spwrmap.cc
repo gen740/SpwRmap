@@ -1,6 +1,6 @@
 #include <algorithm>
-#include <chrono>
 #include <cctype>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <iomanip>
@@ -37,17 +37,18 @@ constexpr uint8_t kInitiatorLogicalAddress = 0xFE;
 constexpr uint8_t kTargetLogicalAddress = 0xFE;
 
 void printUsage(const char* program) {
-  std::cerr << "Usage: " << program
-            << " --type <read|write> --ip <addr> --port <port>\n"
-            << "           --target-address <byte...> --reply-address <byte...>\n"
-            << "           --address <addr> [--length <bytes>] [--data <byte...>]\n\n"
-            << "Examples:\n"
-            << "  " << program
-            << " --type read --target-address 3 6 --reply-address 2 6\n"
-            << "           --address 0x44a2006C --length 4\n"
-            << "  " << program
-            << " --type write --target-address 3 6 2 --reply-address 2 6 4\n"
-            << "           --address 0x44a2006C --data 0x32 0x42 0x18 0x34\n";
+  std::cerr
+      << "Usage: " << program
+      << " --type <read|write> --ip <addr> --port <port>\n"
+      << "           --target-address <byte...> --reply-address <byte...>\n"
+      << "           --address <addr> [--length <bytes>] [--data <byte...>]\n\n"
+      << "Examples:\n"
+      << "  " << program
+      << " --type read --target-address 3 6 --reply-address 2 6\n"
+      << "           --address 0x44a2006C --length 4\n"
+      << "  " << program
+      << " --type write --target-address 3 6 2 --reply-address 2 6 4\n"
+      << "           --address 0x44a2006C --data 0x32 0x42 0x18 0x34\n";
 }
 
 auto parseUnsigned(std::string_view token, unsigned long long max_value)
@@ -101,7 +102,8 @@ auto parseOptions(int argc, char** argv) -> std::optional<Options> {
     }
     const auto name = arg.substr(2);
 
-    auto takeValue = [&](std::string_view option) -> std::optional<std::string> {
+    auto takeValue =
+        [&](std::string_view option) -> std::optional<std::string> {
       if (i + 1 >= argc) {
         std::cerr << "--" << option << " requires a value.\n";
         return std::nullopt;
@@ -127,10 +129,9 @@ auto parseOptions(int argc, char** argv) -> std::optional<Options> {
         return std::nullopt;
       }
       opts.type = std::move(*value);
-      std::transform(opts.type.begin(), opts.type.end(), opts.type.begin(),
-                     [](unsigned char ch) {
-                       return static_cast<char>(std::tolower(ch));
-                     });
+      std::transform(
+          opts.type.begin(), opts.type.end(), opts.type.begin(),
+          [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
     } else if (name == "target-address") {
       if (!parseByteSequence(argc, argv, i, name, opts.target_address)) {
         return std::nullopt;
@@ -144,8 +145,7 @@ auto parseOptions(int argc, char** argv) -> std::optional<Options> {
       if (!value) {
         return std::nullopt;
       }
-      auto parsed =
-          parseUnsigned(*value, std::numeric_limits<uint32_t>::max());
+      auto parsed = parseUnsigned(*value, std::numeric_limits<uint32_t>::max());
       if (!parsed.has_value()) {
         std::cerr << "Invalid --address: '" << *value << "'\n";
         return std::nullopt;
@@ -255,8 +255,8 @@ auto main(int argc, char** argv) -> int {
 
   auto opts = std::move(*options);
 
-  auto client = spw_rmap::SpwRmapTCPClient(
-      {.ip_address = opts.ip, .port = opts.port});
+  auto client =
+      spw_rmap::SpwRmapTCPClient({.ip_address = opts.ip, .port = opts.port});
   client.setInitiatorLogicalAddress(kInitiatorLogicalAddress);
 
   auto connect_res = client.connect(1s);
@@ -266,7 +266,7 @@ auto main(int argc, char** argv) -> int {
     return 1;
   }
 
-  std::jthread loop_thread([&client]() -> void {
+  std::thread loop_thread([&client]() -> void {
     auto res = client.runLoop();
     if (!res.has_value()) {
       std::cerr << "runLoop error: " << res.error().message() << "\n";
@@ -277,15 +277,14 @@ auto main(int argc, char** argv) -> int {
       kTargetLogicalAddress, std::move(opts.target_address),
       std::move(opts.reply_address));
 
-  bool success = opts.type == "read"
-                     ? performRead(opts, client, target_node)
-                     : performWrite(opts, client, target_node);
+  bool success = opts.type == "read" ? performRead(opts, client, target_node)
+                                     : performWrite(opts, client, target_node);
 
   auto shutdown_res = client.shutdown();
   if (!shutdown_res.has_value()) {
     std::cerr << "Shutdown error: " << shutdown_res.error().message() << "\n";
     success = false;
   }
-
+  loop_thread.join();
   return success ? 0 : 1;
 }
