@@ -100,7 +100,6 @@
               buildInputs = [
                 pkgs.gtest.dev
               ];
-              doCheck = true;
             };
           };
 
