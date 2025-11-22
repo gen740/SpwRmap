@@ -43,7 +43,7 @@ The resulting package exposes `_core.SpwRmapTCPNode` mirroring the C++ API.
 - `write` / `read`: synchronous helpers that perform the transaction, block until a reply arrives (or timeout/retry), and return `std::expected` success/error codes.
 - `writeAsync` / `readAsync`: asynchronous variants returning `std::future` that resolve when the reply is received; they invoke user-supplied callbacks before fulfilling the future so event-driven integrations can react immediately.
 
-See `examples/spwrmap` for a minimal CLI workflow demonstrating how to connect, construct a target node, and issue read/write RMAP commands.
+See `examples/spwrmap_example.cc` (C++) and `examples/spwrmap_example.py` (Python) for minimal workflows demonstrating how to connect, construct a target node, and issue read/write RMAP commands.
 
 # Quick Start Guide
 
@@ -162,4 +162,4 @@ node.stop()
 
 Python bindings currently offer only synchronous `read`/`write` methods. To parallelize operations you must call them from your own threads or processes; there is no built-in async wrapper.
 
-The [examples](examples/spwrmap) directory contains CLI programs that parse command-line arguments, manage the lifecycle for you, and show additional patterns (speed tests, multi-target setups, etc.).
+The [examples](examples) directory contains CLI programs that parse command-line arguments, manage the lifecycle for you, and show additional patterns (speed tests, multi-target setups, etc.).
