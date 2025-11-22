@@ -57,6 +57,8 @@
               pkgs.cmake-language-server
               pkgs.ninja
               pkgs.gtest.dev
+              pkgs.ruff
+              pkgs.nixfmt
               (pkgs.python313.withPackages (
                 ps: with ps; [
                   pybind11
@@ -111,9 +113,7 @@
             };
           };
 
-          formatter = pkgs.writeShellScriptBin "fmt" ''
-            ${pkgs.treefmt}/bin/treefmt --config-file ./treefmt.toml .
-          '';
+          formatter = pkgs.treefmt;
         };
     };
 }

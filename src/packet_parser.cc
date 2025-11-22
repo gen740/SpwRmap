@@ -1,7 +1,7 @@
 #include "spw_rmap/packet_parser.hh"
 
-#include <utility>
 #include <iostream>
+#include <utility>
 
 #include "spw_rmap/crc.hh"
 #include "spw_rmap/rmap_packet_type.hh"

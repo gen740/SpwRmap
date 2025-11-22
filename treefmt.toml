@@ -1,3 +1,13 @@
 [formatter.cpp]
 command = "clang-format"
-includes = ["*.c", "*.h", "*.cc", "*.hh", "*.cpp", "*.hpp"]
+options = ["-i", "--style=file"]
+includes = ["*.c", "*.cc", "*.cpp", "*.cxx", "*.h", "*.hh", "*.hpp", "*.hxx"]
+
+[formatter.python]
+command = "ruff"
+options = ["format"]
+includes = ["*.py"]
+
+[formatter.nix]
+command = "nixfmt"
+includes = ["*.nix"]

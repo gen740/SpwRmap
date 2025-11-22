@@ -23,8 +23,7 @@ auto main() -> int {
 
   // Create a target node describing the remote logical/SpaceWire addresses.
   auto target = std::make_shared<spw_rmap::TargetNodeDynamic>(
-      0x32, std::vector<uint8_t>{0x06, 0x02},
-      std::vector<uint8_t>{0x01, 0x03});
+      0x32, std::vector<uint8_t>{0x06, 0x02}, std::vector<uint8_t>{0x01, 0x03});
 
   // Run the receive loop on a background thread so replies are processed.
   std::thread loop([&client]() {
@@ -39,7 +38,8 @@ auto main() -> int {
 
   // Blocking write then read back into a local buffer.
   bool keep_running = true;
-  if (auto res = client.write(target, demo_address, payload); !res.has_value()) {
+  if (auto res = client.write(target, demo_address, payload);
+      !res.has_value()) {
     std::cerr << "Sync write failed: " << res.error().message() << '\n';
     keep_running = false;
   } else {
@@ -58,11 +58,10 @@ auto main() -> int {
   }
 
   if (keep_running) {
-    auto write_future =
-        client.writeAsync(target, demo_address, payload,
-                          [](const spw_rmap::Packet&) {
-                            std::cout << "Async write completed\n";
-                          });
+    auto write_future = client.writeAsync(
+        target, demo_address, payload, [](const spw_rmap::Packet&) {
+          std::cout << "Async write completed\n";
+        });
     if (!write_future.get().has_value()) {
       std::cerr << "Async write failed\n";
       keep_running = false;
@@ -71,9 +70,9 @@ auto main() -> int {
 
   if (keep_running) {
     auto read_future = client.readAsync(
-        target, demo_address, payload.size(),
-        [](spw_rmap::Packet packet) {
-          std::cout << "Async read returned " << packet.data.size() << " bytes\n";
+        target, demo_address, payload.size(), [](spw_rmap::Packet packet) {
+          std::cout << "Async read returned " << packet.data.size()
+                    << " bytes\n";
         });
     if (!read_future.get().has_value()) {
       std::cerr << "Async read failed\n";
