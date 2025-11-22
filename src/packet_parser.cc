@@ -10,9 +10,13 @@ namespace spw_rmap {
 
 auto PacketParser::parseReadPacket(
     const std::span<const uint8_t> packet) noexcept -> Status {
+  if (packet.size() < 4) {
+    return Status::IncompletePacket;
+  }
   size_t head = 0;
-  size_t replyAddressSize =
-      static_cast<size_t>(packet_.instruction & 0b00000011) * 4;
+  const auto instruction = packet[2];
+  const size_t replyAddressSize =
+      static_cast<size_t>(instruction & 0b00000011) * 4;
   if (packet.size() != 16 + replyAddressSize) {
     return Status::IncompletePacket;
   }
@@ -94,9 +98,13 @@ auto PacketParser::parseReadReplyPacket(
 }
 auto PacketParser::parseWritePacket(
     const std::span<const uint8_t> packet) noexcept -> Status {
+  if (packet.size() < 4) {
+    return Status::IncompletePacket;
+  }
   size_t head = 0;
-  size_t replyAddressSize =
-      static_cast<size_t>(packet_.instruction & 0b00000011) * 4;
+  const auto instruction = packet[2];
+  const size_t replyAddressSize =
+      static_cast<size_t>(instruction & 0b00000011) * 4;
   if (packet.size() <= 16 + replyAddressSize) {
     return Status::IncompletePacket;
   }

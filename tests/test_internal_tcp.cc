@@ -56,7 +56,15 @@ std::mt19937 rng(std::random_device{}());  // NOLINT
 
 TEST(TcpClientServer, ServerRecieve) {
   size_t TEST_BUFFER_SIZE = 1024UL;
-  const uint16_t port = pick_free_port();
+  uint16_t port = 0;
+  try {
+    port = pick_free_port();
+  } catch (const std::system_error& e) {
+    if (e.code() == std::errc::operation_not_permitted) {
+      GTEST_SKIP() << "Skipping due to sandbox restriction: " << e.what();
+    }
+    throw;
+  }
 
   std::atomic<bool> server_stop{false};
   std::vector<uint8_t> server_recv_buf;
@@ -136,7 +144,15 @@ TEST(TcpClientServer, ServerRecieve) {
 
 TEST(TcpClientServer, ClientRecieve) {
   size_t TEST_BUFFER_SIZE = 1024UL;
-  const uint16_t port = pick_free_port();
+  uint16_t port = 0;
+  try {
+    port = pick_free_port();
+  } catch (const std::system_error& e) {
+    if (e.code() == std::errc::operation_not_permitted) {
+      GTEST_SKIP() << "Skipping due to sandbox restriction: " << e.what();
+    }
+    throw;
+  }
 
   std::atomic<bool> server_stop{false};
 
