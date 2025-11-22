@@ -31,7 +31,6 @@
                 (with python-final; [
                   scikit-build-core
                   pybind11
-                  pybind11-protobuf
                   pybind11-stubgen
                   wheel
                 ])
@@ -88,7 +87,6 @@
                 (pkgs.python313.withPackages (
                   ps: with ps; [
                     pybind11
-                    pybind11-protobuf
                     pybind11-stubgen
                   ]
                 ))
