@@ -199,6 +199,130 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
 
   std::mutex recv_mtx_;
 
+  struct AsyncOperation {
+    std::future<std::expected<std::monostate, std::error_code>> future;
+    std::optional<uint16_t> transaction_id;
+  };
+
+  using PromiseType =
+      std::promise<std::expected<std::monostate, std::error_code>>;
+
+  auto cancelTransaction_(uint16_t transaction_id) noexcept -> void {
+    if (transaction_id < transaction_id_min_ ||
+        transaction_id >= transaction_id_max_) {
+      return;
+    }
+    const auto idx = transaction_id - transaction_id_min_;
+    {
+      std::lock_guard<std::mutex> lock(*reply_callback_mtx_[idx]);
+      reply_callback_[idx] = nullptr;
+      reply_error_callback_[idx] = nullptr;
+    }
+    releaseTransactionID_(transaction_id);
+  }
+
+  auto startWriteAsyncOperation_(
+      std::shared_ptr<TargetNodeBase> target_node, uint32_t memory_address,
+      const std::span<const uint8_t> data,
+      std::function<void(Packet)> on_complete) noexcept -> AsyncOperation {
+    AsyncOperation op{};
+    auto promise = std::make_shared<PromiseType>();
+    op.future = promise->get_future();
+
+    auto transaction_id_res = getAvailableTransactionID_();
+    if (!transaction_id_res.has_value()) {
+      spw_rmap::debug::debug(
+          "Failed to get available Transaction ID for writeAsync");
+      promise->set_value(std::unexpected{transaction_id_res.error()});
+      return op;
+    }
+    op.transaction_id = transaction_id_res.value();
+    const auto transaction_id = *op.transaction_id;
+    const auto tx_index = transaction_id - transaction_id_min_;
+    {
+      std::lock_guard<std::mutex> lock(*reply_callback_mtx_[tx_index]);
+      reply_error_callback_[tx_index] =
+          [this, promise, transaction_id,
+           tx_index](std::error_code ec) mutable noexcept -> void {
+        promise->set_value(std::unexpected{ec});
+        releaseTransactionID_(transaction_id);
+        reply_error_callback_[tx_index] = nullptr;
+      };
+      reply_callback_[tx_index] =
+          [this, on_complete = std::move(on_complete), promise, transaction_id,
+           tx_index](const Packet& packet) mutable noexcept -> void {
+        on_complete(packet);
+        promise->set_value({});
+        releaseTransactionID_(transaction_id);
+        reply_error_callback_[tx_index] = nullptr;
+      };
+    }
+
+    auto res = sendWritePacket_(std::move(target_node), transaction_id,
+                                memory_address, data);
+    if (!res.has_value()) {
+      {
+        std::lock_guard<std::mutex> lock(*reply_callback_mtx_[tx_index]);
+        reply_callback_[tx_index] = nullptr;
+        reply_error_callback_[tx_index] = nullptr;
+      }
+      promise->set_value(std::unexpected{res.error()});
+      releaseTransactionID_(transaction_id);
+      op.transaction_id.reset();
+    }
+    return op;
+  }
+
+  auto startReadAsyncOperation_(
+      std::shared_ptr<TargetNodeBase> target_node, uint32_t memory_address,
+      uint32_t data_length, std::function<void(Packet)> on_complete) noexcept
+      -> AsyncOperation {
+    AsyncOperation op{};
+    auto promise = std::make_shared<PromiseType>();
+    op.future = promise->get_future();
+
+    auto transaction_id_res = getAvailableTransactionID_();
+    if (!transaction_id_res.has_value()) {
+      promise->set_value(std::unexpected{transaction_id_res.error()});
+      return op;
+    }
+    op.transaction_id = transaction_id_res.value();
+    const auto transaction_id = *op.transaction_id;
+    const auto tx_index = transaction_id - transaction_id_min_;
+    {
+      std::lock_guard<std::mutex> lock(*reply_callback_mtx_[tx_index]);
+      reply_error_callback_[tx_index] =
+          [this, promise, transaction_id,
+           tx_index](std::error_code ec) mutable noexcept -> void {
+        promise->set_value(std::unexpected{ec});
+        releaseTransactionID_(transaction_id);
+        reply_error_callback_[tx_index] = nullptr;
+      };
+      reply_callback_[tx_index] =
+          [this, on_complete = std::move(on_complete), promise, transaction_id,
+           tx_index](const Packet& packet) mutable noexcept -> void {
+        on_complete(packet);
+        promise->set_value({});
+        releaseTransactionID_(transaction_id);
+        reply_error_callback_[tx_index] = nullptr;
+      };
+    }
+
+    auto res = sendReadPacket_(std::move(target_node), transaction_id,
+                               memory_address, data_length);
+    if (!res.has_value()) {
+      {
+        std::lock_guard<std::mutex> lock(*reply_callback_mtx_[tx_index]);
+        reply_callback_[tx_index] = nullptr;
+        reply_error_callback_[tx_index] = nullptr;
+      }
+      promise->set_value(std::unexpected{res.error()});
+      releaseTransactionID_(transaction_id);
+      op.transaction_id.reset();
+    }
+    return op;
+  }
+
   auto recvAndParseOnePacket_() -> std::expected<std::size_t, std::error_code> {
     if (!tcp_backend_) {
       spw_rmap::debug::debug("Not connected");
@@ -728,14 +852,18 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
     retry_count = retry_count == 0 ? 1 : retry_count;
     std::error_code last_error = std::make_error_code(std::errc::timed_out);
     for (std::size_t attempt = 0; attempt < retry_count; ++attempt) {
-      auto future = writeAsync(target_node, memory_address, data,
-                               [](const Packet&) noexcept -> void {});
-      if (future.wait_for(timeout) == std::future_status::ready) {
-        auto res = future.get();
+      auto async_op =
+          startWriteAsyncOperation_(target_node, memory_address, data,
+                                    [](const Packet&) noexcept -> void {});
+      if (async_op.future.wait_for(timeout) == std::future_status::ready) {
+        auto res = async_op.future.get();
         if (!res.has_value()) {
           return std::unexpected{res.error()};
         }
         return {};
+      }
+      if (async_op.transaction_id.has_value()) {
+        cancelTransaction_(*async_op.transaction_id);
       }
       last_error = std::make_error_code(std::errc::timed_out);
     }
@@ -746,56 +874,9 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
                   uint32_t memory_address, const std::span<const uint8_t> data,
                   std::function<void(Packet)> on_complete) noexcept
       -> std::future<std::expected<std::monostate, std::error_code>> override {
-    auto promise = std::make_shared<
-        std::promise<std::expected<std::monostate, std::error_code>>>();
-    auto future = promise->get_future();
-
-    uint16_t transaction_id = 0;
-    {
-      auto transaction_id_res = getAvailableTransactionID_();
-      if (!transaction_id_res.has_value()) {
-        spw_rmap::debug::debug(
-            "Failed to get available Transaction ID for writeAsync");
-        promise->set_value(std::unexpected{transaction_id_res.error()});
-        return future;
-      }
-      transaction_id = transaction_id_res.value();
-    }
-
-    const auto tx_index = transaction_id - transaction_id_min_;
-    {
-      std::lock_guard<std::mutex> lock(*reply_callback_mtx_[tx_index]);
-      reply_error_callback_[tx_index] =
-          [this, promise, transaction_id,
-           tx_index](std::error_code ec) mutable noexcept -> void {
-        promise->set_value(std::unexpected{ec});
-        releaseTransactionID_(transaction_id);
-        reply_error_callback_[tx_index] = nullptr;
-      };
-      reply_callback_[tx_index] =
-          [this, on_complete = std::move(on_complete), promise, transaction_id,
-           tx_index](const Packet& packet) mutable noexcept -> void {
-        on_complete(packet);
-        promise->set_value({});
-        releaseTransactionID_(transaction_id);
-        reply_error_callback_[tx_index] = nullptr;
-      };
-    }
-
-    auto res =
-        sendWritePacket_(target_node, transaction_id, memory_address, data);
-    if (!res.has_value()) {
-      {
-        std::lock_guard<std::mutex> lock(*reply_callback_mtx_[tx_index]);
-        reply_callback_[tx_index] = nullptr;
-        reply_error_callback_[tx_index] = nullptr;
-      }
-      promise->set_value(std::unexpected{res.error()});
-      releaseTransactionID_(transaction_id);
-      return future;
-    }
-
-    return future;
+    auto async_op = startWriteAsyncOperation_(
+        std::move(target_node), memory_address, data, std::move(on_complete));
+    return std::move(async_op.future);
   }
 
   auto read(std::shared_ptr<TargetNodeBase> target_node,
@@ -806,17 +887,20 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
     retry_count = retry_count == 0 ? 1 : retry_count;
     std::error_code last_error = std::make_error_code(std::errc::timed_out);
     for (std::size_t attempt = 0; attempt < retry_count; ++attempt) {
-      auto future =
-          readAsync(target_node, memory_address, data.size(),
-                    [data](const Packet& packet) noexcept -> void {
-                      std::copy_n(packet.data.data(), data.size(), data.data());
-                    });
-      if (future.wait_for(timeout) == std::future_status::ready) {
-        auto res = future.get();
+      auto async_op = startReadAsyncOperation_(
+          target_node, memory_address, data.size(),
+          [data](const Packet& packet) noexcept -> void {
+            std::copy_n(packet.data.data(), data.size(), data.data());
+          });
+      if (async_op.future.wait_for(timeout) == std::future_status::ready) {
+        auto res = async_op.future.get();
         if (!res.has_value()) {
           return std::unexpected{res.error()};
         }
         return {};
+      }
+      if (async_op.transaction_id.has_value()) {
+        cancelTransaction_(*async_op.transaction_id);
       }
       last_error = std::make_error_code(std::errc::timed_out);
     }
@@ -827,54 +911,10 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
                  uint32_t memory_address, uint32_t data_length,
                  std::function<void(Packet)> on_complete) noexcept
       -> std::future<std::expected<std::monostate, std::error_code>> override {
-    auto promise = std::make_shared<
-        std::promise<std::expected<std::monostate, std::error_code>>>();
-    auto future = promise->get_future();
-
-    uint16_t transaction_id = 0;
-    {
-      auto transaction_id_res = getAvailableTransactionID_();
-      if (!transaction_id_res.has_value()) {
-        promise->set_value(std::unexpected{transaction_id_res.error()});
-        return future;
-      }
-      transaction_id = transaction_id_res.value();
-    }
-
-    const auto tx_index = transaction_id - transaction_id_min_;
-    {
-      std::lock_guard<std::mutex> lock(*reply_callback_mtx_[tx_index]);
-      reply_error_callback_[tx_index] =
-          [this, promise, transaction_id,
-           tx_index](std::error_code ec) mutable noexcept -> void {
-        promise->set_value(std::unexpected{ec});
-        releaseTransactionID_(transaction_id);
-        reply_error_callback_[tx_index] = nullptr;
-      };
-      reply_callback_[tx_index] =
-          [this, on_complete = std::move(on_complete), promise, transaction_id,
-           tx_index](const Packet& packet) mutable noexcept -> void {
-        on_complete(packet);
-        promise->set_value({});
-        releaseTransactionID_(transaction_id);
-        reply_error_callback_[tx_index] = nullptr;
-      };
-    }
-
-    auto res = sendReadPacket_(target_node, transaction_id, memory_address,
-                               data_length);
-    if (!res.has_value()) {
-      {
-        std::lock_guard<std::mutex> lock(*reply_callback_mtx_[tx_index]);
-        reply_callback_[tx_index] = nullptr;
-        reply_error_callback_[tx_index] = nullptr;
-      }
-      promise->set_value(std::unexpected{res.error()});
-      releaseTransactionID_(transaction_id);
-      return future;
-    }
-
-    return future;
+    auto async_op =
+        startReadAsyncOperation_(std::move(target_node), memory_address,
+                                 data_length, std::move(on_complete));
+    return std::move(async_op.future);
   }
 
   auto emitTimeCode(uint8_t timecode) noexcept
