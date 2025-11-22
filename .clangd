@@ -7,15 +7,19 @@ CompileFlags:
     - -std=c++23
     - -xc++
     - -nostdlibinc
-    - -isystem/nix/store/s7ik6dazn4nd2jdg9l36qf5q0z18sjyk-python3-3.13.8/include
-    - -isystem/nix/store/b5j6bvmi749wkwkr70hv75lak17dkm74-gtest-1.17.0-dev/include
-    - -isystem/nix/store/ycai3x4ydk44dmm2ai8js0fw41q56frn-python3-3.13.8-env/include
-    - -isystem/nix/store/2xh88byyhrvif26kbmdjvg0jahaxv57d-libcxx-21.1.2-dev/include
-    - -isystem/nix/store/9y52z399adkbydgvmknv39rv60fh255f-compiler-rt-libc-21.1.2-dev/include
-    - -isystem/nix/store/2xh88byyhrvif26kbmdjvg0jahaxv57d-libcxx-21.1.2-dev/include/c++/v1
-    - -isystem/nix/store/wbx9ya6aj0q0q474j1ka2zl1zkzjfmli-clang-wrapper-21.1.2/resource-root/include
-    - -isystem/nix/store/ybygcq3s191f07bwgxbqpgqv0ak4h17k-apple-sdk-11.3/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
-    - -isystem/nix/store/ybygcq3s191f07bwgxbqpgqv0ak4h17k-apple-sdk-11.3/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks (framework directory)
-    - -isystem/nix/store/73sxxnqav6hm0i58canf23fqpl1qmbpk-libSystem-B/include
+    - -isystem/nix/store/hv7qldswrqvg1sjys1lmgjg875hkffng-python3-3.13.9/include
+    - -isystem/nix/store/dg6ikmg5aavlpldk5yr0ka63y9ry1hb0-gtest-1.17.0-dev/include
+    - -isystem/nix/store/a3mw2msblrnfmdr9nmw8ysiqh2nl4fyl-python3-3.13.9-env/include
+    - -isystem/nix/store/qrqws7rbynwdg34kig3mp33rjsar32dd-libcxx-19.1.2+apple-sdk-15.5/include
+    - -isystem/nix/store/lzwcv5378dilf1bw4gkazy3h6hkp66gm-compiler-rt-libc-21.1.2-dev/include
+    - -isystem/nix/store/9zym1ak4fkg1jy6w63kq37x02da6vipb-libiconv-109.100.2-dev/include
+    - -isystem/nix/store/4spjp33v2kkahvwl9r09hlnr8ayw6wm3-libresolv-91-dev/include
+    - -isystem/nix/store/xhv6ncxn7ic2ir7pp6q1vs3q83kd6nc4-libsbuf-14.1.0-dev/include
+    - -isystem/nix/store/qrqws7rbynwdg34kig3mp33rjsar32dd-libcxx-19.1.2+apple-sdk-15.5/include/c++/v1
+    - -isystem/nix/store/b0pmskfnq9b3vfqqn2zr0kfp3lj17zaw-clang-wrapper-21.1.2/resource-root/include
+    - -isystem/nix/store/rrjy7x4jpxp92gs1prpbg79ng0mcl5hj-apple-sdk-14.4/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
+    - -isystem/nix/store/rrjy7x4jpxp92gs1prpbg79ng0mcl5hj-apple-sdk-14.4/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks (framework directory)
+    - -isystem/nix/store/lm725blqlq4bjmfrxps1wdizgh3k4q6z-libSystem-B/include
+
 
   CompilationDatabase: ./build
