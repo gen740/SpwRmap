@@ -49,17 +49,9 @@
 
       perSystem =
         { pkgs, ... }:
-        let
-          llvm = pkgs.llvmPackages_21;
-          stdenvLLVM21 = pkgs.overrideCC pkgs.stdenv llvm.clang;
-        in
         {
           devShells.default = pkgs.mkShellNoCC {
             packages = [
-              pkgs.llvmPackages_21.clang-tools
-              pkgs.llvmPackages_21.libcxxClang
-              pkgs.llvmPackages_21.lldb
-              # pkgs.llvmPackages_21.pkgs.cmake
               pkgs.cmake
               pkgs.cmake-format
               pkgs.cmake-language-server
@@ -77,7 +69,7 @@
           };
 
           packages = {
-            spw_rmap = stdenvLLVM21.mkDerivation {
+            spw_rmap = pkgs.stdenv.mkDerivation {
               pname = "spw_rmap";
               version = "1.0.0";
               src = ./.;
