@@ -126,7 +126,7 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
   }
 
   auto setIpAddress_(std::string ip_address) noexcept -> void {
-    tcp_backend_.setIpAddress(std::move(ip_address));
+    tcp_backend_->setIpAddress(std::move(ip_address));
   }
 
   auto getPort_() const noexcept -> const std::string& {
@@ -134,7 +134,7 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
   }
 
   auto setPort_(std::string port) noexcept -> void {
-    tcp_backend_.setPort(std::move(port));
+    tcp_backend_->setPort(std::move(port));
   }
 
   auto getSendTimeout_() const noexcept -> std::chrono::microseconds {
@@ -266,7 +266,7 @@ class SpwRmapTCPNodeImpl : public SpwRmapNodeBase {
             spw_rmap::debug::debug("Failed to ignore packet data of type 0x01");
             return std::unexpected(res.error());
           }
-          return {};
+          return recvAndParseOnePacket_();
         } break;
         case 0x02: {
           auto res = recvExact_(recv_buffer.first(*dataLength));

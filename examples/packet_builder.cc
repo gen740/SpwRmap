@@ -17,7 +17,7 @@ void printPacket(const std::vector<uint8_t>& packet) {
 
 }  // namespace
 
-auto main() -> int {
+auto main() -> int try {
   std::array<uint8_t, 4> target_address{0x01, 0x02, 0x03, 0x04};
   std::array<uint8_t, 4> reply_address{0x05, 0x06, 0x07, 0x08};
 
@@ -42,4 +42,7 @@ auto main() -> int {
 
   printPacket(buffer);
   return 0;
+} catch (const std::exception& ex) {
+  std::cerr << "Exception: " << ex.what() << '\n';
+  return 1;
 }

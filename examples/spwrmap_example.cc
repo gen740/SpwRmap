@@ -10,7 +10,7 @@
 
 using namespace std::chrono_literals;
 
-auto main() -> int {
+auto main() -> int try {
   // Connect to the SpaceWire/RMAP bridge.
   spw_rmap::SpwRmapTCPClient client(
       {.ip_address = "192.168.1.100", .port = "10030"});
@@ -86,4 +86,7 @@ auto main() -> int {
     loop.join();
   }
   return 0;
+} catch (const std::exception& e) {
+  std::cerr << "Exception: " << e.what() << '\n';
+  return 1;
 }
