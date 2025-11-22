@@ -3,7 +3,7 @@ project(spw_rmap LANGUAGES CXX)
 
 option(SPWRMAP_BUILD_APPS "Build command line applications" ON)
 option(SPWRMAP_BUILD_EXAMPLES "Build examples" OFF)
-option(SPWRMAP_BUILD_TESTS "Build tests" OFF)
+option(SPWRMAP_BUILD_TESTS "Build tests" ON)
 
 add_library(${PROJECT_NAME} STATIC)
 
