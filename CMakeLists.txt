@@ -1,12 +1,17 @@
 cmake_minimum_required(VERSION 3.15)
 project(spw_rmap LANGUAGES CXX)
 
+option(SPWRMAP_BUILD_APPS "Build command line applications" ON)
 option(SPWRMAP_BUILD_EXAMPLES "Build examples" OFF)
 option(SPWRMAP_BUILD_TESTS "Build tests" OFF)
 
 add_library(${PROJECT_NAME} STATIC)
 
 add_subdirectory(src)
+
+if(SPWRMAP_BUILD_APPS)
+  add_subdirectory(app)
+endif()
 
 if(SPWRMAP_BUILD_EXAMPLES)
   add_subdirectory(examples)

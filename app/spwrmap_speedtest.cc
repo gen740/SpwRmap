@@ -228,20 +228,12 @@ auto medianSorted(const std::vector<double>& xs) -> double {
   return 0.5 * (xs[n / 2 - 1] + xs[n / 2]);
 }
 
-auto computeMedian(std::vector<double> xs) -> double {
-  if (xs.empty()) {
-    return 0.0;
-  }
-  std::sort(xs.begin(), xs.end());
-  return medianSorted(xs);
-}
-
 auto computeQuartiles(std::vector<double> xs)
     -> std::tuple<double, double, double, double, double> {
   if (xs.empty()) {
     return {0.0, 0.0, 0.0, 0.0, 0.0};
   }
-  std::sort(xs.begin(), xs.end());
+  std::ranges::sort(xs);
   const std::size_t n = xs.size();
   const double min_v = xs.front();
   const double max_v = xs.back();
@@ -264,7 +256,7 @@ void updateProgress(std::size_t current, std::size_t total) {
   static constexpr std::size_t kBarWidth = 40;
   double ratio = total == 0 ? 0.0 : static_cast<double>(current) / total;
   ratio = std::clamp(ratio, 0.0, 1.0);
-  std::size_t filled = static_cast<std::size_t>(ratio * kBarWidth);
+  auto filled = static_cast<std::size_t>(ratio * kBarWidth);
   std::cerr << '\r' << "[";
   for (std::size_t i = 0; i < kBarWidth; ++i) {
     std::cerr << (i < filled ? '#' : '.');
@@ -289,12 +281,11 @@ auto main(int argc, char** argv) -> int {
   const std::size_t ntimes = *opts.ntimes;
   const std::size_t total_bytes = *opts.nbytes;
   const uint32_t base_address = *opts.start_address;
-  const auto range_end =
-      static_cast<unsigned long long>(base_address) +
-      static_cast<unsigned long long>(total_bytes);
-  if (range_end > static_cast<unsigned long long>(
-                      std::numeric_limits<uint32_t>::max()) +
-                      1ULL) {
+  const auto range_end = static_cast<unsigned long long>(base_address) +
+                         static_cast<unsigned long long>(total_bytes);
+  if (range_end >
+      static_cast<unsigned long long>(std::numeric_limits<uint32_t>::max()) +
+          1ULL) {
     std::cerr << "--start_address + --nbytes exceeds 32-bit address space.\n";
     return 1;
   }
@@ -356,12 +347,11 @@ auto main(int argc, char** argv) -> int {
     const auto start_time = Clock::now();
     auto future = client.readAsync(
         target, base_address, static_cast<uint32_t>(total_bytes),
-        [&read_buffer](spw_rmap::Packet packet) {
+        [&read_buffer](spw_rmap::Packet packet) -> void {
           if (packet.data.size() != read_buffer.size()) {
             throw std::runtime_error("Unexpected data size in callback");
           }
-          std::copy(packet.data.begin(), packet.data.end(),
-                    read_buffer.begin());
+          std::ranges::copy(packet.data, read_buffer.begin());
         });
     future.wait();
     auto res = future.get();
