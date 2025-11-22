@@ -158,6 +158,12 @@ data = node.read(target, 0x20000000, 4)
 print("sync read:", list(data))
 
 node.stop()
+
+## Timeouts and Error Handling
+
+- `write` / `read` accept a `timeout` (default 100 ms) and a `retry_count`. When the timeout expires the pending transaction is cancelled internally, its transaction ID is released, and the call returns `std::errc::timed_out`. This prevents deadlocks when a remote node never replies.
+
+- Asynchronous APIs propagate callback failures: if the function you pass to `writeAsync` / `readAsync` throws, the exception is caught by the library, the transaction is cancelled, and the returned `std::future` resolves to `std::errc::operation_canceled`. This keeps the polling loop alive and makes the failure visible to the caller. Catch exceptions inside your callback if you want to mark the operation successful despite local errors.
 ```
 
 Python bindings currently offer only synchronous `read`/`write` methods. To parallelize operations you must call them from your own threads or processes; there is no built-in async wrapper.
